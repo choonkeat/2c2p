@@ -1,10 +1,13 @@
 package api2c2p
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 // Request3DSType represents the 3DS request type
@@ -19,26 +22,28 @@ const (
 	Request3DSFrictionless Request3DSType = "F"
 )
 
-// PaymentChannel represents available payment channels
+// PaymentChannel represents a payment channel
 type PaymentChannel string
 
 const (
-	// PaymentChannelCC - Credit Card
+	// PaymentChannelCC represents credit card payment
 	PaymentChannelCC PaymentChannel = "CC"
-	// PaymentChannelIPP - Installment Payment Plan
+	// PaymentChannelIPP represents installment payment plan
 	PaymentChannelIPP PaymentChannel = "IPP"
-	// PaymentChannelAPM - Alternative Payment Method
+	// PaymentChannelAPM represents alternative payment methods
 	PaymentChannelAPM PaymentChannel = "APM"
 )
 
-// InterestType represents the interest type for installment payments
+// InterestType represents the installment interest type
 type InterestType string
 
 const (
-	// InterestMerchant - Merchant pays the interest
-	InterestMerchant InterestType = "M"
-	// InterestCustomer - Customer pays the interest
-	InterestCustomer InterestType = "C"
+	// InterestTypeAll shows all available interest options
+	InterestTypeAll InterestType = "A"
+	// InterestTypeCustomer shows only customer pay interest options
+	InterestTypeCustomer InterestType = "C"
+	// InterestTypeMerchant shows only merchant pay interest options
+	InterestTypeMerchant InterestType = "M"
 )
 
 // PaymentTokenRequest represents a request to the Payment Token API
@@ -47,140 +52,382 @@ type PaymentTokenRequest struct {
 	// Max length: 8 characters
 	MerchantID string `json:"merchantID"`
 
-	// CurrencyCodeISO4217 is the payment currency (ISO 4217) (required)
-	// Example: "THB", "USD"
-	CurrencyCodeISO4217 string `json:"currencyCode"`
+	// IdempotencyID is a unique value for retrying same requests (optional)
+	// Max length: 100 characters
+	IdempotencyID string `json:"idempotencyID,omitempty"`
 
-	// Amount is the payment amount (required)
-	// Up to 2 decimal places
-	Amount float64 `json:"amount"`
-
-	// InvoiceNo is a unique transaction ID (required)
-	// Max length: 30 characters
+	// InvoiceNo is the merchant's invoice number (required)
+	// Max length: 50 characters
 	InvoiceNo string `json:"invoiceNo"`
 
 	// Description is the payment description (required)
 	// Max length: 250 characters
 	Description string `json:"description"`
 
-	// PaymentChannel specifies allowed payment methods (optional)
-	// Example: ["CC", "IPP"]
+	// Amount is the payment amount (required)
+	// Format: 12 digits with 5 decimal places (e.g., 000000002500.90000)
+	Amount float64 `json:"amount"`
+
+	// CurrencyCodeISO4217 is the payment currency code (ISO 4217) (required)
+	// Length: 3 characters
+	CurrencyCodeISO4217 string `json:"currencyCode"`
+
+	// PaymentChannel is the list of enabled payment channels (optional)
+	// If empty, all payment channels will be used
 	PaymentChannel []PaymentChannel `json:"paymentChannel,omitempty"`
 
-	// Request3DS enables 3D Secure for credit card payments (optional)
-	// Default: "Y" (Yes)
+	// AgentChannel is the list of enabled agent channels (optional)
+	// Required if paymentChannel includes "123"
+	AgentChannel []string `json:"agentChannel,omitempty"`
+
+	// Request3DS specifies whether to enable 3DS authentication (optional)
+	// Y - Enable 3DS (default)
+	// F - Force 3DS
+	// N - Disable 3DS
 	Request3DS Request3DSType `json:"request3DS,omitempty"`
+
+	// ProtocolVersion is the 3DS protocol version (optional)
+	// Default: "2.1.0"
+	ProtocolVersion string `json:"protocolVersion,omitempty"`
+
+	// ECI is the Electronic Commerce Indicator (conditional)
+	// Required if protocolVersion, cavv, or dsTransactionId is provided
+	ECI string `json:"eci,omitempty"`
+
+	// CAVV is the Cardholder Authentication Verification Value (conditional)
+	// Required if protocolVersion, eci, or dsTransactionId is provided
+	CAVV string `json:"cavv,omitempty"`
+
+	// DSTransactionID is the Directory Server Transaction ID (conditional)
+	// Required if protocolVersion, eci, or cavv is provided
+	DSTransactionID string `json:"dsTransactionId,omitempty"`
 
 	// Tokenize enables card tokenization (optional)
 	Tokenize bool `json:"tokenize,omitempty"`
 
-	// CardTokens specifies card tokens to use for payment (optional)
-	// Max length per token: 128 characters
-	CardTokens []string `json:"cardTokens,omitempty"`
+	// CardTokens is a list of registered wallet tokens for payment (optional)
+	CardTokens []string `json:"customerToken,omitempty"`
 
-	// CardTokenOnly restricts payment to tokenized cards only (optional)
-	CardTokenOnly bool `json:"cardTokenOnly,omitempty"`
-
-	// TokenizeOnly enables tokenization without charging (optional)
+	// TokenizeOnly specifies whether to require tokenization with authorization (optional)
+	// true - Tokenization without authorization
+	// false - Tokenization with authorization (default)
 	TokenizeOnly bool `json:"tokenizeOnly,omitempty"`
 
-	// InterestType specifies who pays the installment interest (optional)
-	// Only applicable when PaymentChannel includes IPP
+	// StoreCredentials specifies whether to store credentials (optional)
+	// F - First time payment
+	// S - Subsequent payment
+	// N - Not using
+	StoreCredentials string `json:"storeCredentials,omitempty"`
+
+	// InterestType specifies the installment interest type (optional)
+	// A - All available options (default)
+	// C - Customer Pay Interest Option ONLY
+	// M - Merchant Pay Interest Option ONLY
 	InterestType InterestType `json:"interestType,omitempty"`
 
-	// InstallmentPeriodFilterMonths specifies available installment periods (optional)
-	// Only applicable when PaymentChannel includes IPP
-	// Example: [3, 6, 9] for 3, 6, and 9 months
+	// InstallmentPeriodFilterMonths specifies which installment periods to offer (optional)
 	InstallmentPeriodFilterMonths []int `json:"installmentPeriodFilter,omitempty"`
 
-	// ProductCode is the product code for specific payment providers (optional)
-	// Max length: 50 characters
+	// InstallmentBankFilter specifies which banks to offer installments for (optional)
+	InstallmentBankFilter []string `json:"installmentBankFilter,omitempty"`
+
+	// ProductCode is the installment product code (optional)
 	ProductCode string `json:"productCode,omitempty"`
 
 	// Recurring enables recurring payment (optional)
 	Recurring bool `json:"recurring,omitempty"`
 
-	// InvoicePrefix is used for recurring payment invoice generation (optional)
-	// Max length: 20 characters
+	// InvoicePrefix is used for recurring transactions (conditional)
+	// Required if recurring is true
 	InvoicePrefix string `json:"invoicePrefix,omitempty"`
 
-	// RecurringAmount is the amount for recurring payments (optional)
-	// Required if Recurring is true
+	// RecurringAmount is the recurring charge amount (optional)
+	// If not set, system will use transaction amount
 	RecurringAmount float64 `json:"recurringAmount,omitempty"`
 
-	// AllowAccumulate allows accumulation of recurring payments (optional)
+	// AllowAccumulate allows accumulation of failed recurring amounts (conditional)
+	// Required if recurring is true
 	AllowAccumulate bool `json:"allowAccumulate,omitempty"`
 
-	// MaxAccumulateAmount is the maximum amount for accumulated payments (optional)
-	// Required if AllowAccumulate is true
+	// MaxAccumulateAmount is the maximum recurring accumulated amount (conditional)
+	// Required if recurring is true
 	MaxAccumulateAmount float64 `json:"maxAccumulateAmount,omitempty"`
 
-	// RecurringIntervalDays is the interval in days between recurring payments (optional)
-	// Required if Recurring is true
+	// RecurringIntervalDays is the interval in days between charges (conditional)
+	// Required if recurring is true
 	RecurringIntervalDays int `json:"recurringInterval,omitempty"`
 
-	// RecurringCount is the total number of recurring payments (optional)
-	// Required if Recurring is true
+	// RecurringCount is the number of recurring payment cycles (conditional)
+	// Required if recurring is true
+	// Set to 0 for indefinite recurring until terminated
 	RecurringCount int `json:"recurringCount,omitempty"`
 
-	// ChargeNextDateYYYYMMDD is the next charge date (optional)
-	// Format: YYYY-MM-DD
+	// ChargeNextDateYYYYMMDD is the next recurring payment date (optional)
+	// Format: ddMMyyyy
 	ChargeNextDateYYYYMMDD string `json:"chargeNextDate,omitempty"`
 
-	// ChargeOnDateYYYYMMDD is the specific charge date (optional)
-	// Format: YYYY-MM-DD
+	// ChargeOnDateYYYYMMDD is the specific day for recurring payments (conditional)
+	// Format: ddMM
+	// Required if recurring is true
 	ChargeOnDateYYYYMMDD string `json:"chargeOnDate,omitempty"`
 
-	// PaymentExpiryYYYYMMDDHHMMSS is the payment token expiry date and time (optional)
-	// Format: YYYY-MM-DD HH:mm:ss
+	// PaymentExpiryYYYYMMDDHHMMSS is the payment completion deadline (optional)
+	// Format: yyyy-MM-dd HH:mm:ss
+	// Default: 30 minutes
 	PaymentExpiryYYYYMMDDHHMMSS string `json:"paymentExpiry,omitempty"`
 
-	// PromotionCode is the promotion code to apply (optional)
-	// Max length: 50 characters
+	// PromotionCode is the promotion code for the payment (optional)
 	PromotionCode string `json:"promotionCode,omitempty"`
 
-	// PaymentRouteID specifies a specific payment route (optional)
+	// PaymentRouteID specifies custom payment routing rules (optional)
 	PaymentRouteID string `json:"paymentRouteID,omitempty"`
 
-	// FxProviderCode specifies the FX provider (optional)
+	// FxProviderCode is the forex provider code for multi-currency payments (optional)
 	FxProviderCode string `json:"fxProviderCode,omitempty"`
 
-	// ImmediatePayment requires immediate payment processing (optional)
+	// FXRateID is the forex rate ID (optional)
+	FXRateID string `json:"fxRateId,omitempty"`
+
+	// OriginalAmount is the original currency amount (optional)
+	OriginalAmount float64 `json:"originalAmount,omitempty"`
+
+	// ImmediatePayment triggers payment immediately (optional)
 	ImmediatePayment bool `json:"immediatePayment,omitempty"`
 
-	// UserDefined1-5 are custom fields for your use (optional)
-	// Max length: 255 characters each
+	// IframeMode enables iframe mode (optional)
+	IframeMode bool `json:"iframeMode,omitempty"`
+
+	// UserDefined1-5 are merchant-specific data fields (optional)
 	UserDefined1 string `json:"userDefined1,omitempty"`
 	UserDefined2 string `json:"userDefined2,omitempty"`
 	UserDefined3 string `json:"userDefined3,omitempty"`
 	UserDefined4 string `json:"userDefined4,omitempty"`
 	UserDefined5 string `json:"userDefined5,omitempty"`
 
-	// StatementDescriptor is the descriptor shown on customer's card statement (optional)
-	// Max length: 50 characters
+	// StatementDescriptor is a dynamic statement description (optional)
+	// Length: 5-22 characters
+	// Cannot contain special characters: < > \ ' " *
 	StatementDescriptor string `json:"statementDescriptor,omitempty"`
 
-	// SubMerchants contains sub-merchant information for split payments (optional)
+	// ExternalSubMerchantID is an external sub-merchant ID (optional)
+	ExternalSubMerchantID string `json:"externalSubMerchantID,omitempty"`
+
+	// SubMerchants is a list of sub-merchants for split payments (optional)
 	SubMerchants []SubMerchant `json:"subMerchants,omitempty"`
 
-	// Locale specifies the payment page language (optional)
-	// Default: "en"
-	Locale string `json:"locale,omitempty"`
-
-	// FrontendReturnURL is the URL to return to after frontend payment completion (optional)
-	// Must be HTTPS URL
-	FrontendReturnURL string `json:"frontendReturnUrl,omitempty"`
-
-	// BackendReturnURL is the URL for payment notification (optional)
-	// Must be HTTPS URL
-	BackendReturnURL string `json:"backendReturnUrl,omitempty"`
-
-	// NonceStr is a random string for request uniqueness (optional)
-	// Max length: 32 characters
-	NonceStr string `json:"nonceStr,omitempty"`
-
-	// UIParams contains user interface customization parameters (optional)
+	// UIParams contains UI customization parameters (optional)
 	UIParams *UIParams `json:"uiParams,omitempty"`
+}
+
+// ToMap converts PaymentTokenRequest to a map[string]string for JWT payload
+func (r *PaymentTokenRequest) ToMap() map[string]string {
+	m := make(map[string]string)
+
+	// Required fields
+	m["merchantID"] = r.MerchantID
+	m["invoiceNo"] = r.InvoiceNo
+	m["description"] = r.Description
+	m["amount"] = fmt.Sprintf("%015.5f", r.Amount)
+	m["currencyCode"] = r.CurrencyCodeISO4217
+
+	// Optional fields
+	if r.IdempotencyID != "" {
+		m["idempotencyID"] = r.IdempotencyID
+	}
+
+	if len(r.PaymentChannel) > 0 {
+		channels := make([]string, len(r.PaymentChannel))
+		for i, ch := range r.PaymentChannel {
+			channels[i] = string(ch)
+		}
+		m["paymentChannel"] = strings.Join(channels, ",")
+	}
+
+	if len(r.AgentChannel) > 0 {
+		m["agentChannel"] = strings.Join(r.AgentChannel, ",")
+	}
+
+	if r.Request3DS != "" {
+		m["request3DS"] = string(r.Request3DS)
+	}
+
+	if r.ProtocolVersion != "" {
+		m["protocolVersion"] = r.ProtocolVersion
+	}
+
+	if r.ECI != "" {
+		m["eci"] = r.ECI
+	}
+
+	if r.CAVV != "" {
+		m["cavv"] = r.CAVV
+	}
+
+	if r.DSTransactionID != "" {
+		m["dsTransactionId"] = r.DSTransactionID
+	}
+
+	if r.Tokenize {
+		m["tokenize"] = "Y"
+	}
+
+	if len(r.CardTokens) > 0 {
+		m["customerToken"] = strings.Join(r.CardTokens, ",")
+	}
+
+	if r.TokenizeOnly {
+		m["tokenizeOnly"] = "Y"
+	}
+
+	if r.StoreCredentials != "" {
+		m["storeCredentials"] = r.StoreCredentials
+	}
+
+	if r.InterestType != "" {
+		m["interestType"] = string(r.InterestType)
+	}
+
+	if len(r.InstallmentPeriodFilterMonths) > 0 {
+		periods := make([]string, len(r.InstallmentPeriodFilterMonths))
+		for i, p := range r.InstallmentPeriodFilterMonths {
+			periods[i] = strconv.Itoa(p)
+		}
+		m["installmentPeriodFilter"] = strings.Join(periods, ",")
+	}
+
+	if len(r.InstallmentBankFilter) > 0 {
+		m["installmentBankFilter"] = strings.Join(r.InstallmentBankFilter, ",")
+	}
+
+	if r.ProductCode != "" {
+		m["productCode"] = r.ProductCode
+	}
+
+	if r.Recurring {
+		m["recurring"] = "Y"
+	}
+
+	if r.InvoicePrefix != "" {
+		m["invoicePrefix"] = r.InvoicePrefix
+	}
+
+	if r.RecurringAmount > 0 {
+		m["recurringAmount"] = fmt.Sprintf("%015.5f", r.RecurringAmount)
+	}
+
+	if r.AllowAccumulate {
+		m["allowAccumulate"] = "Y"
+	}
+
+	if r.MaxAccumulateAmount > 0 {
+		m["maxAccumulateAmount"] = fmt.Sprintf("%015.5f", r.MaxAccumulateAmount)
+	}
+
+	if r.RecurringIntervalDays > 0 {
+		m["recurringInterval"] = strconv.Itoa(r.RecurringIntervalDays)
+	}
+
+	if r.RecurringCount > 0 {
+		m["recurringCount"] = strconv.Itoa(r.RecurringCount)
+	}
+
+	if r.ChargeNextDateYYYYMMDD != "" {
+		m["chargeNextDate"] = r.ChargeNextDateYYYYMMDD
+	}
+
+	if r.ChargeOnDateYYYYMMDD != "" {
+		m["chargeOnDate"] = r.ChargeOnDateYYYYMMDD
+	}
+
+	if r.PaymentExpiryYYYYMMDDHHMMSS != "" {
+		m["paymentExpiry"] = r.PaymentExpiryYYYYMMDDHHMMSS
+	}
+
+	if r.PromotionCode != "" {
+		m["promotionCode"] = r.PromotionCode
+	}
+
+	if r.PaymentRouteID != "" {
+		m["paymentRouteID"] = r.PaymentRouteID
+	}
+
+	if r.FxProviderCode != "" {
+		m["fxProviderCode"] = r.FxProviderCode
+	}
+
+	if r.FXRateID != "" {
+		m["fxRateId"] = r.FXRateID
+	}
+
+	if r.OriginalAmount > 0 {
+		m["originalAmount"] = fmt.Sprintf("%015.5f", r.OriginalAmount)
+	}
+
+	if r.ImmediatePayment {
+		m["immediatePayment"] = "Y"
+	}
+
+	if r.IframeMode {
+		m["iframeMode"] = "Y"
+	}
+
+	if r.UserDefined1 != "" {
+		m["userDefined1"] = r.UserDefined1
+	}
+
+	if r.UserDefined2 != "" {
+		m["userDefined2"] = r.UserDefined2
+	}
+
+	if r.UserDefined3 != "" {
+		m["userDefined3"] = r.UserDefined3
+	}
+
+	if r.UserDefined4 != "" {
+		m["userDefined4"] = r.UserDefined4
+	}
+
+	if r.UserDefined5 != "" {
+		m["userDefined5"] = r.UserDefined5
+	}
+
+	if r.StatementDescriptor != "" {
+		m["statementDescriptor"] = r.StatementDescriptor
+	}
+
+	if r.ExternalSubMerchantID != "" {
+		m["externalSubMerchantID"] = r.ExternalSubMerchantID
+	}
+
+	if len(r.SubMerchants) > 0 {
+		for i, sm := range r.SubMerchants {
+			prefix := fmt.Sprintf("subMerchant[%d].", i)
+			m[prefix+"merchantID"] = sm.MerchantID
+			m[prefix+"amount"] = fmt.Sprintf("%015.5f", sm.Amount)
+			m[prefix+"invoiceNo"] = sm.InvoiceNo
+			m[prefix+"description"] = sm.Description
+		}
+	}
+
+	if r.UIParams != nil {
+		if r.UIParams.UserInfo != nil {
+			ui := r.UIParams.UserInfo
+			if ui.Name != "" {
+				m["userInfo.name"] = ui.Name
+			}
+			if ui.Email != "" {
+				m["userInfo.email"] = ui.Email
+			}
+			if ui.Address != "" {
+				m["userInfo.address"] = ui.Address
+			}
+			if ui.CountryCodeISO3166 != "" {
+				m["userInfo.countryCode"] = ui.CountryCodeISO3166
+			}
+		}
+	}
+
+	return m
 }
 
 // SubMerchant represents a sub-merchant for split payments
@@ -216,6 +463,10 @@ type UserInfo struct {
 	// Email is the customer's email address
 	// Max length: 255 characters
 	Email string `json:"email,omitempty"`
+
+	// Address is the customer's address
+	// Max length: 255 characters
+	Address string `json:"address,omitempty"`
 
 	// MobileNo is the customer's mobile number without country code
 	// Max length: 50 characters
@@ -256,35 +507,88 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 		req.MerchantID = c.MerchantID
 	}
 
-	payload, err := json.Marshal(req)
+	// Make HTTP request
+	url := c.endpoint("paymentToken")
+
+	// Format amount as D(12,5) - 12 digits before decimal, 5 after
+	amountStr := fmt.Sprintf("%012.5f", float64(req.Amount)/100.0)
+
+	// Prepare payload
+	payload := map[string]interface{}{
+		"merchantID":     req.MerchantID,
+		"invoiceNo":      req.InvoiceNo,
+		"description":    req.Description,
+		"amount":         amountStr,
+		"currencyCode":   req.CurrencyCodeISO4217,
+		"locale":         "en",
+		"request3DS":     "Y",
+		"paymentChannel": req.PaymentChannel,
+		"subMerchants":   req.SubMerchants,
+	}
+
+	// Convert request to JSON
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	token, err := c.GenerateJWTToken(payload)
+	// Generate JWT token
+	token, err := c.GenerateJWTToken(jsonData)
 	if err != nil {
 		return nil, fmt.Errorf("generate jwt token: %w", err)
 	}
 
-	// Make HTTP request
-	url := fmt.Sprintf("%s/paymentToken", c.BaseURL)
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	// Prepare the request body
+	requestBody := map[string]string{
+		"payload": token,
+	}
+	jsonBody, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf("marshal request body: %w", err)
+	}
+
+	// Create HTTP request
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w\nURL: %s", err, url)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
-	resp, err := c.HTTPClient.Do(httpReq)
+	// Make request with debug info
+	resp, debug, err := c.doRequestWithDebug(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("do request: %w", err)
+		return nil, c.formatErrorWithDebug(fmt.Errorf("do request: %w", err), debug)
 	}
 	defer resp.Body.Close()
 
-	// Read response body
+	// Try to decode response
+	var jwtResponse struct {
+		Payload string `json:"payload"`
+	}
+	if err := json.Unmarshal([]byte(debug.Response.Body), &jwtResponse); err != nil || jwtResponse.Payload == "" {
+		// Try decoding as direct response
+		var response struct {
+			RespCode string `json:"respCode"`
+			RespDesc string `json:"respDesc"`
+		}
+		if err := json.Unmarshal([]byte(debug.Response.Body), &response); err != nil {
+			return nil, c.formatErrorWithDebug(fmt.Errorf("decode response: %w", err), debug)
+		}
+		return &PaymentTokenResponse{
+			RespCode: response.RespCode,
+			RespDesc: response.RespDesc,
+		}, nil
+	}
+
+	// If we got a JWT response, decode it
 	var tokenResp PaymentTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	if err := c.DecodeJWTToken(jwtResponse.Payload, &tokenResp); err != nil {
+		return nil, c.formatErrorWithDebug(fmt.Errorf("decode jwt token: %w", err), debug)
+	}
+
+	// Check response code
+	if tokenResp.RespCode != "0000" {
+		return &tokenResp, c.formatErrorWithDebug(fmt.Errorf("payment token failed: %s (%s)", tokenResp.RespCode, tokenResp.RespDesc), debug)
 	}
 
 	return &tokenResp, nil

@@ -1,74 +1,221 @@
 package api2c2p
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 // Client represents a 2C2P API client
 type Client struct {
-	MerchantID  string
-	SecretKey   string
-	BaseURL     string
-	HTTPClient  *http.Client
+	// SecretKey is the merchant's secret key for signing tokens
+	SecretKey string
+
+	// MerchantID is the merchant's unique identifier
+	MerchantID string
+
+	// HTTPClient is the HTTP client to use for API requests
+	HTTPClient *http.Client
+
+	// BaseURL is the base URL for API requests
+	BaseURL string
 }
 
 // NewClient creates a new 2C2P API client
-func NewClient(merchantID, secretKey, baseURL string) *Client {
-	return &Client{
-		MerchantID: merchantID,
-		SecretKey:  secretKey,
-		BaseURL:    baseURL,
-		HTTPClient: &http.Client{
-			Timeout: time.Second * 30,
-		},
+func NewClient(secretKey, merchantID string, baseURL ...string) *Client {
+	url := "https://sandbox-pgw.2c2p.com"
+	if len(baseURL) > 0 {
+		url = baseURL[0]
 	}
+	return &Client{
+		SecretKey:  secretKey,
+		MerchantID: merchantID,
+		HTTPClient: &http.Client{},
+		BaseURL:    url,
+	}
+}
+
+// endpoint returns the full URL for an API endpoint
+func (c *Client) endpoint(path string) string {
+	return fmt.Sprintf("%s/payment/4.3/%s", c.BaseURL, path)
 }
 
 // GenerateJWTToken generates a JWT token for the given payload
 func (c *Client) GenerateJWTToken(payload []byte) (string, error) {
-	var data map[string]interface{}
-	if err := json.Unmarshal(payload, &data); err != nil {
-		return "", fmt.Errorf("error unmarshaling payload: %v", err)
+	// Create header
+	header := map[string]string{
+		"typ": "JWT",
+		"alg": "HS256",
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims(data))
-	signedToken, err := token.SignedString([]byte(c.SecretKey))
+	// Encode header
+	headerJSON, err := json.Marshal(header)
 	if err != nil {
-		return "", fmt.Errorf("error signing token: %v", err)
+		return "", fmt.Errorf("marshal header: %w", err)
 	}
+	headerBase64 := base64.RawURLEncoding.EncodeToString(headerJSON)
 
-	return signedToken, nil
+	// Encode payload
+	payloadBase64 := base64.RawURLEncoding.EncodeToString(payload)
+
+	// Create signature
+	signatureInput := headerBase64 + "." + payloadBase64
+	h := hmac.New(sha256.New, []byte(c.SecretKey))
+	h.Write([]byte(signatureInput))
+	signature := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+
+	// Combine all parts
+	token := headerBase64 + "." + payloadBase64 + "." + signature
+	return token, nil
 }
 
-// DecodeJWTToken decodes a JWT token into the provided response struct
-func (c *Client) DecodeJWTToken(tokenString string, response interface{}) error {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-		}
-		return []byte(c.SecretKey), nil
-	})
+// DecodeJWTToken decodes a JWT token and verifies its signature
+func (c *Client) DecodeJWTToken(token string, v interface{}) error {
+	parts := bytes.Split([]byte(token), []byte{'.'})
+	if len(parts) != 3 {
+		return fmt.Errorf("invalid token format")
+	}
+
+	// Verify signature
+	h := hmac.New(sha256.New, []byte(c.SecretKey))
+	h.Write([]byte(string(parts[0]) + "." + string(parts[1])))
+	signature := base64.RawURLEncoding.EncodeToString(h.Sum(nil))
+	if signature != string(parts[2]) {
+		return fmt.Errorf("invalid token")
+	}
+
+	// Decode payload
+	payload, err := base64.RawURLEncoding.DecodeString(string(parts[1]))
 	if err != nil {
-		return fmt.Errorf("error parsing token: %v", err)
+		return fmt.Errorf("decode payload: %w", err)
 	}
 
-	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-		jsonData, err := json.Marshal(claims)
+	// Unmarshal payload
+	if err := json.Unmarshal(payload, v); err != nil {
+		return fmt.Errorf("unmarshal payload: %w", err)
+	}
+
+	return nil
+}
+
+// debugRequest represents a debug request
+type debugRequest struct {
+	URL     string
+	Headers http.Header
+	Body    string
+}
+
+// debugResponse represents a debug response
+type debugResponse struct {
+	Status      string
+	Headers     http.Header
+	Body        string
+	ElapsedTime time.Duration
+}
+
+// debugInfo represents debug information for a request/response pair
+type debugInfo struct {
+	Request  debugRequest
+	Response debugResponse
+}
+
+// doRequestWithDebug performs an HTTP request and returns debug information
+func (c *Client) doRequestWithDebug(req *http.Request) (*http.Response, *debugInfo, error) {
+	// Create debug info
+	debug := &debugInfo{
+		Request: debugRequest{
+			URL:     req.URL.String(),
+			Headers: req.Header,
+		},
+	}
+
+	// Read and restore request body
+	if req.Body != nil {
+		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			return fmt.Errorf("error marshaling claims: %v", err)
+			return nil, debug, fmt.Errorf("read request body: %w", err)
 		}
-
-		if err := json.Unmarshal(jsonData, response); err != nil {
-			return fmt.Errorf("error unmarshaling claims: %v", err)
-		}
-
-		return nil
+		debug.Request.Body = string(body)
+		req.Body = io.NopCloser(bytes.NewBuffer(body))
 	}
 
-	return fmt.Errorf("invalid token")
+	// Make request
+	start := time.Now()
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, debug, err
+	}
+
+	// Read response body
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, debug, fmt.Errorf("read response body: %w", err)
+	}
+	resp.Body = io.NopCloser(bytes.NewBuffer(body))
+
+	// Update debug info
+	debug.Response = debugResponse{
+		Status:      resp.Status,
+		Headers:     resp.Header,
+		Body:        string(body),
+		ElapsedTime: time.Since(start),
+	}
+
+	return resp, debug, nil
+}
+
+// formatErrorWithDebug formats an error with debug information
+func (c *Client) formatErrorWithDebug(err error, debug *debugInfo) error {
+	if debug == nil {
+		return err
+	}
+
+	// Try to extract response code from body
+	var response struct {
+		RespCode string `json:"respCode"`
+		RespDesc string `json:"respDesc"`
+	}
+	if err := json.Unmarshal([]byte(debug.Response.Body), &response); err == nil {
+		respCode := ResponseCode(response.RespCode)
+		return fmt.Errorf("%w\nRequest URL: %s\nRequest Headers: %v\nRequest Body: %s\nResponse Status: %s\nResponse Headers: %v\nResponse Body: %s\nResponse Time: %v\nResponse Code: %s (%s)",
+			err,
+			debug.Request.URL,
+			debug.Request.Headers,
+			debug.Request.Body,
+			debug.Response.Status,
+			debug.Response.Headers,
+			debug.Response.Body,
+			debug.Response.ElapsedTime,
+			respCode,
+			respCode.Description(),
+		)
+	}
+
+	return fmt.Errorf("%w\nRequest URL: %s\nRequest Headers: %v\nRequest Body: %s\nResponse Status: %s\nResponse Headers: %v\nResponse Body: %s\nResponse Time: %v",
+		err,
+		debug.Request.URL,
+		debug.Request.Headers,
+		debug.Request.Body,
+		debug.Response.Status,
+		debug.Response.Headers,
+		debug.Response.Body,
+		debug.Response.ElapsedTime,
+	)
+}
+
+// newRequest creates a new HTTP request with common headers
+func (c *Client) newRequest(method, path string, body []byte) (*http.Request, error) {
+	req, err := http.NewRequest(method, c.endpoint(path), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	return req, nil
 }

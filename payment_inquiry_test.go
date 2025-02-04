@@ -1,6 +1,7 @@
 package api2c2p
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,44 +20,53 @@ func TestPaymentInquiry(t *testing.T) {
 
 	// Example response data from documentation
 	exampleResponse := PaymentInquiryResponse{
-		MerchantID:                     "JT01",
-		InvoiceNo:                      "1523953661",
-		Amount:                         1000.00,
-		CurrencyCode:                   "SGD",
-		TransactionDateTime:            "311220235959",
-		AgentCode:                      "OCBC",
-		ChannelCode:                    "VI",
-		ApprovalCode:                   "717282",
-		ReferenceNo:                    "00010001",
+		MerchantID:                    "JT01",
+		InvoiceNo:                     "1523953661",
+		Amount:                        1000.00,
+		CurrencyCode:                  "SGD",
+		TransactionDateTime:           "311220235959",
+		AgentCode:                     "OCBC",
+		ChannelCode:                   "VI",
+		ApprovalCode:                  "717282",
+		ReferenceNo:                   "00010001",
 		TranRef:                       "",
-		AccountNo:                      "411111XXXXXX1111",
-		CustomerToken:                  "",
+		AccountNo:                     "411111XXXXXX1111",
+		CustomerToken:                 "",
 		CustomerTokenExpiry:           "",
 		CardType:                      "",
-		IssuerCountry:                  "SG",
+		IssuerCountry:                 "SG",
 		IssuerBank:                    "",
 		ECI:                           "05",
 		InstallmentPeriod:             6,
 		InterestType:                  "M",
 		InterestRate:                  0.3,
 		InstallmentMerchantAbsorbRate: 0.0,
-		RecurringUniqueID:            "",
-		RecurringSequenceNo:          0,
+		RecurringUniqueID:             "",
+		RecurringSequenceNo:           0,
 		FxAmount:                      25000.00,
 		FxRate:                        25.0000001,
-		FxCurrencyCode:               "THB",
+		FxCurrencyCode:                "THB",
 		UserDefined1:                  "",
 		UserDefined2:                  "",
 		UserDefined3:                  "",
 		UserDefined4:                  "",
 		UserDefined5:                  "",
-		AcquirerReferenceNo:          "",
-		AcquirerMerchantID:          "",
-		PaymentScheme:                "",
-		IdempotencyID:               "",
-		LoyaltyPoints:               0,
-		RespCode:                     "0000",
-		RespDesc:                     "Transaction is successful.",
+		AcquirerReferenceNo:           "",
+		AcquirerMerchantID:            "",
+		PaymentScheme:                 "",
+		IdempotencyID:                 "",
+		LoyaltyPoints:                 0,
+		TransactionStatus:             "Success",
+		MaskedPan:                     "411111XXXXXX1111",
+		PaymentChannel:                "VI",
+		PaymentStatus:                 "Success",
+		ChannelResponseCode:           "00",
+		ChannelResponseDescription:    "Success",
+		PaidAgent:                     "OCBC",
+		PaidChannel:                   "VI",
+		PaidDateTime:                  "311220235959",
+		RespCode:                      "0000",
+		RespDesc:                      "Transaction is successful.",
 	}
 
 	// Create test server
@@ -107,7 +117,7 @@ func TestPaymentInquiry(t *testing.T) {
 	client := NewClient("JT01", "your_secret_key", ts.URL)
 
 	// Make request
-	response, err := client.PaymentInquiry(request)
+	response, err := client.PaymentInquiry(context.Background(), request)
 	if err != nil {
 		t.Fatalf("Error making payment inquiry: %v", err)
 	}

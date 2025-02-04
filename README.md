@@ -181,14 +181,14 @@ go run cli/payment-token/main.go \
 ├── client.go                 # Core client implementation with JWT handling
 ├── payment_inquiry.go        # Payment Inquiry API implementation
 ├── payment_inquiry_test.go   # Tests for Payment Inquiry
-├── cli/                     # CLI tools for testing each API
-│   └── payment-inquiry/     # Payment Inquiry CLI tool
+├── cli/                      # CLI tools for testing each API
+│   └── payment-inquiry/      # Payment Inquiry CLI tool
 │       └── main.go
-│   └── payment-token/       # Payment Token CLI tool
+│   └── payment-token/        # Payment Token CLI tool
 │       └── main.go
-├── logs/                    # Development conversation logs
-│   └── YYYY-MM-DD.md       # Daily conversation logs
-└── Makefile                 # Build and test automation
+├── logs/                     # Development conversation logs
+│   └── YYYY-MM-DD.md         # Daily conversation logs
+└── Makefile                  # Build and test automation
 ```
 
 ## Development
@@ -212,7 +212,7 @@ Then visit http://localhost:6060/pkg/github.com/choonkeat/2c2p
 Development conversations with AI assistants are automatically logged in the `logs` directory. To append the current conversation to today's log:
 
 ```
-Please append our conversation to logs/YYYY-MM-DD.md
+Please append our raw conversation to logs/YYYY-MM-DD.md
 ```
 
 This helps maintain a record of design decisions and implementation details.

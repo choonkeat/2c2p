@@ -1,64 +1,62 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 
 	api2c2p "github.com/choonkeat/2c2p"
 )
 
 func main() {
-	merchantID := flag.String("merchantID", "", "Merchant ID (required)")
-	secretKey := flag.String("secretKey", "", "Secret Key (required)")
-	invoiceNo := flag.String("invoiceNo", "", "Invoice Number (required if paymentToken not provided)")
-	paymentToken := flag.String("paymentToken", "", "Payment Token (required if invoiceNo not provided)")
-	locale := flag.String("locale", "en", "Locale (optional)")
-	baseURL := flag.String("baseURL", "https://sandbox-pgw.2c2p.com", "API Base URL")
+	var (
+		merchantID = flag.String("merchantID", "", "2C2P merchant ID")
+		secretKey  = flag.String("secretKey", "", "Secret Key")
+		invoiceNo  = flag.String("invoiceNo", "", "Invoice number")
+	)
 	flag.Parse()
 
-	// Validate required flags
-	if *merchantID == "" || *secretKey == "" {
-		fmt.Println("Error: merchantID and secretKey are required")
-		flag.Usage()
-		os.Exit(1)
-	}
-	if *invoiceNo == "" && *paymentToken == "" {
-		fmt.Println("Error: either invoiceNo or paymentToken must be provided")
+	if *merchantID == "" || *secretKey == "" || *invoiceNo == "" {
+		fmt.Println("Required flags: -merchantID, -secretKey, -invoiceNo")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Create client
-	client := api2c2p.NewClient(*merchantID, *secretKey, *baseURL)
-
-	// Create request
-	request := &api2c2p.PaymentInquiryRequest{
-		MerchantID:   *merchantID,
-		InvoiceNo:    *invoiceNo,
-		PaymentToken: *paymentToken,
-		Locale:       *locale,
+	client := api2c2p.NewClient(*secretKey, *merchantID)
+	req := &api2c2p.PaymentInquiryRequest{
+		MerchantID: *merchantID,
+		InvoiceNo:  *invoiceNo,
 	}
 
-	// Make request
-	response, err := client.PaymentInquiry(request)
+	resp, err := client.PaymentInquiry(context.Background(), req)
 	if err != nil {
-		log.Fatalf("Error making payment inquiry: %v", err)
+		fmt.Fprintln(os.Stderr, err)
+		if resp != nil {
+			fmt.Fprintf(os.Stderr, "Response Code: %s (%s)\n", resp.RespCode, api2c2p.ResponseCode(resp.RespCode).Description())
+		}
+		os.Exit(1)
 	}
 
-	// Print response
-	fmt.Printf("Response Code: %s\n", response.RespCode)
-	fmt.Printf("Description: %s\n", response.RespDesc)
-	if response.RespCode == "0000" {
-		fmt.Printf("Invoice No: %s\n", response.InvoiceNo)
-		fmt.Printf("Amount: %.2f %s\n", response.Amount, response.CurrencyCode)
-		fmt.Printf("Transaction Date: %s\n", response.TransactionDateTime)
-		if response.PaymentScheme != "" {
-			fmt.Printf("Payment Scheme: %s\n", response.PaymentScheme)
-		}
-		if response.IssuerBank != "" {
-			fmt.Printf("Issuer Bank: %s\n", response.IssuerBank)
-		}
-	}
+	fmt.Printf("Response Code: %s\n", resp.RespCode)
+	fmt.Printf("Response Description: %s\n", api2c2p.ResponseCode(resp.RespCode).Description())
+	fmt.Printf("Transaction Status: %s\n", resp.TransactionStatus)
+	fmt.Printf("Amount: %.2f\n", resp.Amount)
+	fmt.Printf("Currency Code: %s\n", resp.CurrencyCode)
+	fmt.Printf("Masked Pan: %s\n", resp.MaskedPan)
+	fmt.Printf("Payment Channel: %s\n", resp.PaymentChannel)
+	fmt.Printf("Payment Status: %s\n", resp.PaymentStatus)
+	fmt.Printf("Channel Response Code: %s\n", resp.ChannelResponseCode)
+	fmt.Printf("Channel Response Description: %s\n", resp.ChannelResponseDescription)
+	fmt.Printf("Approval Code: %s\n", resp.ApprovalCode)
+	fmt.Printf("ECI: %s\n", resp.ECI)
+	fmt.Printf("Transaction DateTime: %s\n", resp.TransactionDateTime)
+	fmt.Printf("Paid Agent: %s\n", resp.PaidAgent)
+	fmt.Printf("Paid Channel: %s\n", resp.PaidChannel)
+	fmt.Printf("Paid DateTime: %s\n", resp.PaidDateTime)
+	fmt.Printf("User Defined 1: %s\n", resp.UserDefined1)
+	fmt.Printf("User Defined 2: %s\n", resp.UserDefined2)
+	fmt.Printf("User Defined 3: %s\n", resp.UserDefined3)
+	fmt.Printf("User Defined 4: %s\n", resp.UserDefined4)
+	fmt.Printf("User Defined 5: %s\n", resp.UserDefined5)
 }
