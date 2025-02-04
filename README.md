@@ -6,8 +6,72 @@ A Go client library for integrating with the 2C2P Payment Gateway API (v4.3.1).
 
 - JWT-based authentication
 - Payment Inquiry API support
+- Payment Token API support
 - Comprehensive test coverage
 - CLI tools for testing each API endpoint
+
+## API Documentation
+
+Always refer to the official 2C2P API documentation for the most up-to-date information:
+
+- [API Documentation Portal](https://developer.2c2p.com/docs)
+- [Payment Token API v4.3.1](https://developer.2c2p.com/v4.3.1/docs/api-payment-token)
+  - Check the "Payment Token Request Parameter" section for all available request fields
+  - Check the "Payment Token Response Parameter" section for response fields
+- [Payment Inquiry API v4.3.1](https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry)
+  - Check the "Payment Inquiry Request Parameter" section for all available request fields
+  - Check the "Payment Inquiry Response Parameter" section for response fields
+
+## Field Naming Conventions
+
+When defining request/response types in Go, follow these naming conventions:
+
+1. **Preserve Original JSON Names**: Always keep the original JSON field name in the struct tag
+   ```go
+   // Good - preserves JSON name and adds unit suffix to Go field
+   RecurringIntervalDays int `json:"recurringInterval"`
+   
+   // Bad - changed JSON name
+   RecurringDays int `json:"recurringDays"`
+   
+   // Also Bad - preserved JSON name but Go field name doesn't indicate unit
+   RecurringDays int `json:"recurringInterval"`
+   ```
+
+2. **Add Format/Standard Suffixes**: For fields with specific formats or standards, append the format to the Go field name
+   ```go
+   // Currency codes
+   CurrencyCodeISO4217 string `json:"currencyCode"`
+   
+   // Country codes
+   CountryCodeISO3166 string `json:"countryCode"`
+   
+   // Date formats
+   ChargeNextDateYYYYMMDD string `json:"chargeNextDate"`
+   PaymentExpiryYYYYMMDDHHMMSS string `json:"paymentExpiry"`
+   ```
+
+3. **Add Unit Suffixes**: For fields representing quantities, append the unit to the Go field name
+   ```go
+   // Time durations
+   RecurringIntervalDays int `json:"recurringInterval"`
+   InstallmentPeriodFilterMonths []int `json:"installmentPeriodFilter"`
+   ```
+
+4. **Don't Add Type Suffixes**: Don't append Go type names to fields
+   ```go
+   // Good
+   Amount float64 `json:"amount"`
+   
+   // Bad - includes type name
+   AmountFloat64 float64 `json:"amount"`
+   ```
+
+These conventions help developers understand:
+- The exact format required for date strings (YYYYMMDD vs YYYYMMDDHHMMSS)
+- Which standards are being used (ISO4217 vs ISO3166)
+- What units are expected (days vs months)
+- The original API field names (via JSON tags)
 
 ## Installation
 
@@ -49,6 +113,15 @@ fmt.Printf("Payment status: %s - %s\n", response.RespCode, response.RespDesc)
 
 Each API endpoint has its own CLI tool for testing. The tools are located in the `cli` directory:
 
+#### Testing CLI Help
+
+Always test the CLI tools first with the `-h` flag to see available options:
+
+```bash
+go run cli/payment-inquiry/main.go -h
+go run cli/payment-token/main.go -h
+```
+
 #### Payment Inquiry CLI
 
 ```bash
@@ -61,6 +134,46 @@ go run cli/payment-inquiry/main.go \
     [-baseURL https://sandbox-pgw.2c2p.com]
 ```
 
+#### Payment Token CLI
+
+```bash
+# Basic usage
+go run cli/payment-token/main.go \
+    -merchantID your_merchant_id \
+    -secretKey your_secret_key \
+    -currencyCode THB \
+    -amount 100.00 \
+    -invoiceNo INV123 \
+    -description "Test payment"
+
+# Advanced usage with optional parameters
+go run cli/payment-token/main.go \
+    -merchantID your_merchant_id \
+    -secretKey your_secret_key \
+    -currencyCode THB \
+    -amount 100.00 \
+    -invoiceNo INV123 \
+    -description "Test payment" \
+    -paymentChannel "CC,IPP,APM" \
+    -request3DS "Y" \
+    -tokenize \
+    -cardTokens "token1,token2" \
+    -installmentPeriods "3,6,9" \
+    -recurring \
+    -recurringAmount 100.00 \
+    -recurringInterval 30 \
+    -recurringCount 12 \
+    -paymentExpiry "2024-12-31 23:59:59" \
+    -frontendURL "https://your-site.com/return" \
+    -backendURL "https://your-site.com/notify" \
+    -userName "John Doe" \
+    -userEmail "john@example.com" \
+    -userMobile "1234567890" \
+    -userCountry "SG" \
+    -userMobilePrefix "65" \
+    -locale "en"
+```
+
 ## Project Structure
 
 ```
@@ -70,6 +183,8 @@ go run cli/payment-inquiry/main.go \
 ├── payment_inquiry_test.go   # Tests for Payment Inquiry
 ├── cli/                     # CLI tools for testing each API
 │   └── payment-inquiry/     # Payment Inquiry CLI tool
+│       └── main.go
+│   └── payment-token/       # Payment Token CLI tool
 │       └── main.go
 ├── logs/                    # Development conversation logs
 │   └── YYYY-MM-DD.md       # Daily conversation logs
