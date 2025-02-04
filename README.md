@@ -7,7 +7,7 @@ A Go client library for integrating with the 2C2P Payment Gateway API (v4.3.1).
 - JWT-based authentication
 - Payment Inquiry API support
 - Comprehensive test coverage
-- CLI tool for easy testing
+- CLI tools for testing each API endpoint
 
 ## Installation
 
@@ -45,16 +45,18 @@ if err != nil {
 fmt.Printf("Payment status: %s - %s\n", response.RespCode, response.RespDesc)
 ```
 
-### Using the CLI Tool
+### Using the CLI Tools
 
-The package includes a CLI tool for testing the API:
+Each API endpoint has its own CLI tool for testing. The tools are located in the `cli` directory:
+
+#### Payment Inquiry CLI
 
 ```bash
-go run example/main.go \
-    -function PaymentInquiry \
+go run cli/payment-inquiry/main.go \
     -merchantID your_merchant_id \
-    -invoiceNo your_invoice_number \
     -secretKey your_secret_key \
+    -invoiceNo your_invoice_number \
+    [-paymentToken payment_token] \
     [-locale en] \
     [-baseURL https://sandbox-pgw.2c2p.com]
 ```
@@ -63,23 +65,79 @@ go run example/main.go \
 
 ```
 .
-├── client.go              # Core client implementation with JWT handling
-├── payment_inquiry.go     # Payment Inquiry API implementation
-├── payment_inquiry_test.go # Tests for Payment Inquiry
-├── example/
-│   └── main.go           # CLI tool implementation
-└── Makefile              # Build and test automation
+├── client.go                 # Core client implementation with JWT handling
+├── payment_inquiry.go        # Payment Inquiry API implementation
+├── payment_inquiry_test.go   # Tests for Payment Inquiry
+├── cli/                     # CLI tools for testing each API
+│   └── payment-inquiry/     # Payment Inquiry CLI tool
+│       └── main.go
+├── logs/                    # Development conversation logs
+│   └── YYYY-MM-DD.md       # Daily conversation logs
+└── Makefile                 # Build and test automation
 ```
 
-## Testing
+## Development
 
-Run the test suite:
+### Running Tests
 
 ```bash
 make test
 ```
 
-## Documentation
+### Viewing Documentation
+
+```bash
+make docs-view
+```
+
+Then visit http://localhost:6060/pkg/github.com/choonkeat/2c2p
+
+### Logging Development Conversations
+
+Development conversations with AI assistants are automatically logged in the `logs` directory. To append the current conversation to today's log:
+
+```
+Please append our conversation to logs/YYYY-MM-DD.md
+```
+
+This helps maintain a record of design decisions and implementation details.
+
+## Contributing New API Implementations
+
+When implementing a new 2C2P API endpoint:
+
+1. **File Organization**
+   - Create a new file named after the API (e.g., `payment_inquiry.go` for Payment Inquiry API)
+   - Create a corresponding test file (e.g., `payment_inquiry_test.go`)
+   - Create a CLI tool in `cli/api-name/main.go`
+
+2. **Code Structure**
+   - Add package documentation at the top of the file with links to relevant 2C2P API documentation
+   - Define request and response structs with proper JSON tags and field comments
+   - Implement the API method on the `Client` struct
+
+3. **Documentation**
+   - Include links to the API documentation in the file header
+   - Document each struct field with its type and whether it's required
+   - Add usage examples in the package documentation
+
+4. **Testing**
+   - Use sample request/response values from the 2C2P documentation
+   - Test both success and error cases
+   - Include JWT token validation tests
+
+5. **CLI Tool**
+   - Create a new directory under `cli` for your API (e.g., `cli/payment-inquiry/`)
+   - Implement a focused CLI tool with flags specific to your API
+   - Include proper validation and help text for all flags
+   - Format the output to be human-readable
+
+For example, see how the Payment Inquiry API is implemented:
+1. API implementation in `payment_inquiry.go`
+2. Tests in `payment_inquiry_test.go`
+3. CLI tool in `cli/payment-inquiry/main.go`
+
+## Documentation References
 
 - [2C2P API Documentation](https://developer.2c2p.com/v4.3.1/docs)
 - Specific endpoints:
@@ -91,14 +149,6 @@ make test
 ## Response Codes
 
 For a complete list of response codes and their meanings, refer to the [Response Code List](https://developer.2c2p.com/v4.3.1/docs/response-code-payment) in the 2C2P documentation.
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin feature/my-new-feature`)
-5. Create a new Pull Request
 
 ## License
 
