@@ -1,0 +1,62 @@
+merchantID,C 25,M,Merchant ID,,,
+childMerchantID,C 25,C,"Unique merchant ID that is registered with 2C2P, must be SUB Account of merchantID",,,
+invoiceNo,AN 50,M,"Invoice number
+Unique merchant order number. Example: 00000000010000091203
+*Limited to 12 numerics when requesting for APM payment for Myanmar.",,,
+amount,"D (12,5)",M,Transaction amount,,,
+currencyCode,A 3,M,"Currency Code
+Transaction currency code in 3 alphabet value as specified in ISO 4217. Example :
+SGD = Singapore dollar THB = Thai Baht
+if empty, default value will use merchant's base currency.",,,
+transactionDateTime,N 14,M,"Process transaction Date Time
+Note : Date format “ yyyyMMddHHmmss”",,,
+agentCode,AN 30,M,"Agent code, it’s the agent who process the payment.
+Refer to Agent code List",,,
+channelCode,AN 30,M,"Channel code list:
+Refer to Process By / Channel Code List",,,
+approvalCode,C 6,C,Approval code of card transaction only,,,
+referenceNo,AN 50,M,Transaction Reference Number from Card Host / The invoice number used when processing APM payment.,,,
+tranRef,AN 255,O,Issued by System. This is to trace the transactions in the Routing System.,,,
+accountNo,N 19,M,"masked credit card number
+first 6 and last 4 of credit card number",,,
+customerToken,AN 20,O,"Unique ID of store card info (generated and returned by 2c2p payment gateway if payment send with storeCard option value is ""Y"")
+Only for credit card payment.",,,
+customerTokenExpiry,AN 8,O,Token expiry date. Format: yyyyMMdd,,,
+cardType,C 20,C,"Card type as retrieved based on BIN information - PREPAID - DEBIT - CREDIT",,,
+issuerCountry,A 2,C,"credit card bank issuer country
+A2 country code
+mandatory for credit card",,,
+issuerBank,C 200,C,credit card bank issuer bank</p,,,
+eci,C 2,C,"ECI for credit card payment
+mandatory for credit card payment",,,
+installmentPeriod,N 2,C,Installment tenor,,,
+interestType,A 1,C,Installment interest type,,,
+interestRate,"D (3,5)",C,Installment interest rate,,,
+installmentMerchantAbsorbRate,"D (3,5)",C,Installment merchant absorb rate,,,
+recurringUniqueID,N 20,C,"RPP transaction record identifier.
+Mandatory for RPP transaction.",,,
+recurringSequenceNo,N 10,C,"To indicate the number of recurring payments.
+eg. recurringSequenceNo = 8 means this recurring payment is 8th time from the recurring cycle.
+
+Mandatory for RPP transaction.",,,
+fxAmount,"D(12,5)",C,mcp Amount,,,
+fxRate,"D(12,7)",C,mcp Fx Rate,,,
+fxCurrencyCode,A3,C,mcp Currency Code,,,
+userDefined1,C 150,O,For merchant to submit merchant's specific data.,,,
+userDefined2,C 150,O,For merchant to submit merchant's specific data.,,,
+userDefined3,C 150,O,For merchant to submit merchant's specific data.,,,
+userDefined4,C 150,O,For merchant to submit merchant's specific data.,,,
+userDefined5,C 150,O,For merchant to submit merchant's specific data.,,,
+acquirerReferenceNo,C 50,O,Transaction reference number provided by acquirer.,,,
+acquirerMerchantId,C 50,O,MID used for authorization to the acquirer (only for MID(s) belong to merchant can enable this option),,,
+idempotencyID,C 100,O,Unique idempotency ID,,,
+paymentScheme,C 30,C,"Payment Scheme
+Refer to Payment Scheme / Process by List",,,
+paymentID,C 255,M,"paymentID for referencing this transaction for future payment such as ""MIT"" e.g ccpp_12345678",,,
+schemePaymentID,C 255,C,Value is returned if scheme payment ID is available from acquirer,,,
+acquirerResponseCode,N 2,O,ISO 8583's Response Code. The value is Available if Acquirer returns ISO 8583's Response Code,,,
+respCode,C 4,M,"Response code
+Refer to Response Code List",,,
+respDesc,C 255,M,Response description,,,
+"
+",,,,,,
