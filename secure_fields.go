@@ -144,8 +144,9 @@ func DecodePaymentResponse(paymentResponse string) (*SecureFieldsPaymentResponse
 	return &response, nil
 }
 
-// Decrypt decrypts PKCS7 enveloped data using an RSA private key
-func Decrypt(encryptedData []byte, combinedPEM []byte) ([]byte, error) {
+// DecryptPKCS7 decrypts base64-encoded PKCS7 enveloped data using certificate and private key from PEM data.
+// The combinedPEM must contain both a private key (PKCS8) and certificate in PEM format.
+func DecryptPKCS7(encryptedData []byte, combinedPEM []byte) ([]byte, error) {
 	var privKey interface{}
 	var cert *x509.Certificate
 

@@ -1,12 +1,13 @@
-merchantID,C 25,M,Merchant ID,,,
+Parameter,Data Type,Mandatory,Description,,,
+,,,,,,
 childMerchantID,C 25,C,"Unique merchant ID that is registered with 2C2P, must be SUB Account of merchantID",,,
 invoiceNo,AN 50,M,"Invoice number
-Unique merchant order number. Example: 00000000010000091203
+Unique merchant order number.Example: 00000000010000091203
 *Limited to 12 numerics when requesting for APM payment for Myanmar.",,,
 amount,"D (12,5)",M,Transaction amount,,,
 currencyCode,A 3,M,"Currency Code
-Transaction currency code in 3 alphabet value as specified in ISO 4217. Example :
-SGD = Singapore dollar THB = Thai Baht
+Transaction currency code in 3 alphabet value as specified in ISO 4217.Example :
+SGD = Singapore dollarTHB = Thai Baht
 if empty, default value will use merchant's base currency.",,,
 transactionDateTime,N 14,M,"Process transaction Date Time
 Note : Date format “ yyyyMMddHHmmss”",,,
@@ -22,7 +23,7 @@ first 6 and last 4 of credit card number",,,
 customerToken,AN 20,O,"Unique ID of store card info (generated and returned by 2c2p payment gateway if payment send with storeCard option value is ""Y"")
 Only for credit card payment.",,,
 customerTokenExpiry,AN 8,O,Token expiry date. Format: yyyyMMdd,,,
-cardType,C 20,C,"Card type as retrieved based on BIN information - PREPAID - DEBIT - CREDIT",,,
+cardType,C 20,C,"Card type as retrieved based on BIN information- PREPAID- DEBIT- CREDIT",,,
 issuerCountry,A 2,C,"credit card bank issuer country
 A2 country code
 mandatory for credit card",,,

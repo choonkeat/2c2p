@@ -19,7 +19,7 @@ type PaymentResponseBackEnd struct {
 	ECI                   string   `xml:"eci"`
 	DateTime              string   `xml:"dateTime"`
 	Status                string   `xml:"status"`
-	FailReason            string   `xml:"failReason"`
+	FailReason            string   `xml:"failReason"` // can contain successful reason too
 	UserDefined1          string   `xml:"userDefined1"`
 	UserDefined2          string   `xml:"userDefined2"`
 	UserDefined3          string   `xml:"userDefined3"`

@@ -2,10 +2,11 @@
 
 test:
 	gofmt -w .
-	go test ./...
 	for cli in cli/*; do \
 		(go run $$cli/*.go -h) || exit 1; \
 	done
+	@echo done sanity check CLIs
+	go test ./...
 
 docs-view:
 	@if ! command -v godoc >/dev/null 2>&1; then \

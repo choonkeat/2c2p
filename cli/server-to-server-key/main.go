@@ -1,5 +1,22 @@
 package main
 
+// This program generates a self-signed certificate and private key
+// Equivalent OpenSSL commands:
+//
+// 1. Generate private key (2048 bits):
+//    $ openssl genrsa -out private.pem 2048
+//
+// 2. Generate self-signed certificate (valid for 10 years):
+//    $ openssl req -x509 -new -nodes \
+//        -key private.pem \
+//        -sha256 \
+//        -days 3650 \
+//        -out public_cert.pem \
+//        -subj "/CN=2C2P Test CA"
+//
+// 3. Combine private key and certificate:
+//    $ cat private.pem public_cert.pem > combined_private_public.pem
+
 import (
 	"crypto/rand"
 	"crypto/rsa"
@@ -16,10 +33,15 @@ import (
 
 func main() {
 	var (
-		outDir = flag.String("out", ".", "output directory")
+		outDir = flag.String("out", "dist", "output directory")
 		cn     = flag.String("cn", "2C2P Test CA", "Common Name for the certificate")
 	)
 	flag.Parse()
+
+	// Create output directory if it doesn't exist
+	if err := os.MkdirAll(*outDir, 0755); err != nil {
+		log.Fatalf("Failed to create output directory: %v", err)
+	}
 
 	// Generate RSA key pair
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
