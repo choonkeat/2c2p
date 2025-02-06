@@ -1,18 +1,12 @@
 package main
 
 import (
-	"crypto/hmac"
-	"crypto/sha1"
-	"encoding/base64"
-	"encoding/hex"
-	"encoding/xml"
 	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	api2c2p "github.com/choonkeat/2c2p"
@@ -20,8 +14,7 @@ import (
 
 var (
 	// Server configuration
-	port      = flag.Int("port", 8080, "Port to run the server on")
-	serverURL = flag.String("serverURL", "http://localhost:8080", "Your server URL prefix (e.g., https://your-domain.com)")
+	port = flag.Int("port", 8080, "Port to run the server on")
 
 	// 2C2P configuration
 	sandbox        = flag.Bool("sandbox", true, "Use sandbox environment")
@@ -49,21 +42,13 @@ func main() {
 	}
 
 	// Generate the payment form HTML with secure fields
-	secureFieldsHTML := api2c2p.GenerateSecureFieldsHTML(*formAction, *sandbox)
+	secureFieldsHTML := api2c2p.SecureFieldsFormHTML(*merchantID, *secretKey, *formAction, *sandbox)
 
 	// Handler for the payment form page
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		log.Println(r.Method, r.URL.String())
-		tmpl, err := template.New("securefields").Parse(secureFieldsHTML)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
 		w.Header().Set("Content-Type", "text/html")
-		if err := tmpl.Execute(w, nil); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		fmt.Fprint(w, secureFieldsHTML)
 	})
 
 	// Handler for processing payment form submission
@@ -103,9 +88,6 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get encrypted card data from secure fields
-	encryptedCardInfo := r.PostFormValue("encryptedCardInfo")
-
 	// Prepare payment request parameters
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	invoiceNo := fmt.Sprintf("INV%s", timestamp)
@@ -136,61 +118,27 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create HMAC signature string
-	strToHash := createSignatureString(
-		"9.4", // API version
-		timestamp,
-		*merchantID,
-		invoiceNo,
-		paymentDetails,
-		encryptedCardInfo,
-	)
-	hmacHash := createHMAC(strToHash, *secretKey)
-
-	// Create payment request XML
-	xmlStr := fmt.Sprintf(`<PaymentRequest>
-		<version>9.4</version>
-		<timeStamp>%s</timeStamp>
-		<merchantID>%s</merchantID>
-		<uniqueTransactionCode>%s</uniqueTransactionCode>
-		<desc>%s</desc>
-		<amt>%s</amt>
-		<currencyCode>%s</currencyCode>
-		<paymentChannel></paymentChannel>
-		<panCountry>%s</panCountry>
-		<cardholderName>%s</cardholderName>
-		<request3DS>Y</request3DS>
-		<secureHash>%s</secureHash>
-		<storeCard>%s</storeCard>
-		<encCardData>%s</encCardData>
-		<userDefined1>%s</userDefined1>
-		<userDefined2>%s</userDefined2>
-		<userDefined3>%s</userDefined3>
-		<userDefined4>%s</userDefined4>
-		<userDefined5>%s</userDefined5>
-	</PaymentRequest>`,
-		timestamp,
-		*merchantID,
-		invoiceNo,
-		paymentDetails.Description,
-		paymentDetails.Amount,
-		paymentDetails.CurrencyCode,
-		paymentDetails.CountryCode,
-		paymentDetails.CustomerName,
-		hmacHash,
-		paymentDetails.StoreCard,
-		encryptedCardInfo,
-		paymentDetails.UserDefined1,
-		paymentDetails.UserDefined2,
-		paymentDetails.UserDefined3,
-		paymentDetails.UserDefined4,
-		paymentDetails.UserDefined5,
-	)
-
-	// Base64 encode the XML
-	payload := base64.StdEncoding.EncodeToString([]byte(xmlStr))
+	payload := api2c2p.CreateSecureFieldsPaymentPayload(*c2cpURL, *merchantID, *secretKey, timestamp, invoiceNo, paymentDetails, r)
 
 	// Render auto-submitting form to 2C2P
-	renderRedirectForm(w, *c2cpURL, payload)
+	w.Header().Set("Content-Type", "text/html")
+	tmpl := template.Must(template.New("result").Parse(`<!DOCTYPE html>
+<html>
+<body>
+	<form action="{{.FormURL}}" method="POST" name="paymentRequestForm">
+		<p>Processing payment request. Please do not close the browser, press back or refresh the page.</p>
+		{{range $key, $value := .FormFields}}
+			<input type="hidden" name="{{$key}}" value="{{$value}}">
+		{{end}}
+	</form>
+	<script>document.paymentRequestForm.submit();</script>
+</body>
+</html>`))
+
+	err := tmpl.Execute(w, payload)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error rendering template: %v", err), http.StatusInternalServerError)
+	}
 }
 
 // handlePaymentResponse processes the payment response from 2C2P:
@@ -205,21 +153,9 @@ func handlePaymentResponse(w http.ResponseWriter, r *http.Request, privateKey []
 	}
 
 	// Get encrypted payment response
-	encryptedResponse := r.FormValue("paymentResponse")
-	log.Printf("Received payment response: %s\n", encryptedResponse)
-
-	// Decrypt the response
-	decrypted, err := api2c2p.DecryptPKCS7([]byte(encryptedResponse), privateKey)
+	response, decrypted, err := api2c2p.DecryptPaymentResponseBackend(r, privateKey)
 	if err != nil {
-		http.Error(w, "Error decrypting response: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-	log.Printf("Decrypted response: %s\n", string(decrypted))
-
-	// Parse the XML response
-	var response api2c2p.PaymentResponseBackEnd
-	if err := xml.Unmarshal(decrypted, &response); err != nil {
-		http.Error(w, "Error parsing XML response: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -235,89 +171,26 @@ func handlePaymentNotification(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	log.Printf("Payment notification received: %v", r.PostForm)
+
+	// Read private key for decryption
+	privateKey, err := os.ReadFile(*privateKeyFile)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error reading private key: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Decrypt and parse the payment response
+	response, decrypted, err := api2c2p.DecryptPaymentResponseBackend(r, privateKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error decrypting payment notification: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	log.Printf("Payment notification received: RespCode=%s XML=%s", response.RespCode, string(decrypted))
 	w.WriteHeader(http.StatusOK)
 }
 
 // Helper functions
-
-func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, details struct {
-	Amount       string
-	CurrencyCode string
-	Description  string
-	CustomerName string
-	CountryCode  string
-	StoreCard    string
-	UserDefined1 string
-	UserDefined2 string
-	UserDefined3 string
-	UserDefined4 string
-	UserDefined5 string
-}, encryptedCardInfo string) string {
-	// Construct signature string with all fields in the same order as PHP
-	return fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-		apiVersion,           // version
-		timestamp,            // timestamp
-		merchantID,           // merchantID
-		invoiceNo,            // uniqueTransactionCode
-		details.Description,  // desc
-		details.Amount,       // amt
-		details.CurrencyCode, // currencyCode
-		"",                   // paymentChannel
-		"",                   // storeCardUniqueID
-		"",                   // panBank
-		details.CountryCode,  // country
-		details.CustomerName, // cardholderName
-		"",                   // cardholderEmail
-		"",                   // payCategoryID
-		details.UserDefined1, // userDefined1
-		details.UserDefined2, // userDefined2
-		details.UserDefined3, // userDefined3
-		details.UserDefined4, // userDefined4
-		details.UserDefined5, // userDefined5
-		details.StoreCard,    // storeCard
-		"",                   // ippTransaction
-		"",                   // installmentPeriod
-		"",                   // interestType
-		"",                   // recurring
-		"",                   // invoicePrefix
-		"",                   // recurringAmount
-		"",                   // allowAccumulate
-		"",                   // maxAccumulateAmt
-		"",                   // recurringInterval
-		"",                   // recurringCount
-		"",                   // chargeNextDate
-		"",                   // promotion
-		"Y",                  // request3DS
-		"",                   // statementDescriptor
-		"",                   // agentCode
-		"",                   // channelCode
-		"",                   // paymentExpiry
-		"",                   // mobileNo
-		"",                   // tokenizeWithoutAuthorization
-		encryptedCardInfo,    // encryptedCardInfo
-	)
-}
-
-func createHMAC(data, key string) string {
-	h := hmac.New(sha1.New, []byte(key))
-	h.Write([]byte(data))
-	return strings.ToUpper(hex.EncodeToString(h.Sum(nil)))
-}
-
-func renderRedirectForm(w http.ResponseWriter, c2cpURL, payload string) {
-	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<body>
-	<form action="%s/2C2PFrontEnd/SecurePayment/PaymentAuth.aspx" method="POST" name="paymentRequestForm">
-		<p>Processing payment request. Please do not close the browser, press back or refresh the page.</p>
-		<input type="hidden" name="paymentRequest" value="%s">
-	</form>
-	<script>document.paymentRequestForm.submit();</script>
-</body>
-</html>`, c2cpURL, payload)
-}
 
 func renderPaymentResult(w http.ResponseWriter, response api2c2p.PaymentResponseBackEnd, rawResponse string) {
 	w.Header().Set("Content-Type", "text/html")

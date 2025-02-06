@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/choonkeat/2c2p"
+	api2c2p "github.com/choonkeat/2c2p"
 )
 
 func main() {
@@ -76,9 +76,9 @@ func main() {
 
 	// Convert payment channels
 	channels := strings.Split(*paymentChannelStr, ",")
-	paymentChannels := make([]api2c2p.PaymentChannel, len(channels))
+	paymentChannels := make([]api2c2p.PaymentTokenPaymentChannel, len(channels))
 	for i, ch := range channels {
-		paymentChannels[i] = api2c2p.PaymentChannel(ch)
+		paymentChannels[i] = api2c2p.PaymentTokenPaymentChannel(ch)
 	}
 
 	// Convert agent channels
@@ -119,7 +119,7 @@ func main() {
 		CurrencyCodeISO4217:           *currencyCodeISO4217,
 		PaymentChannel:                paymentChannels,
 		AgentChannel:                  agentChannels,
-		Request3DS:                    api2c2p.Request3DSType(*request3DS),
+		Request3DS:                    api2c2p.PaymentTokenRequest3DSType(*request3DS),
 		ProtocolVersion:               *protocolVersion,
 		ECI:                           *eci,
 		CAVV:                          *cavv,
@@ -128,7 +128,7 @@ func main() {
 		CardTokens:                    cardTokens,
 		TokenizeOnly:                  *tokenizeOnly,
 		StoreCredentials:              *storeCredentials,
-		InterestType:                  api2c2p.InterestType(*interestType),
+		InterestType:                  api2c2p.PaymentTokenInterestType(*interestType),
 		InstallmentPeriodFilterMonths: installmentPeriodFilterMonths,
 		InstallmentBankFilter:         installmentBanks,
 		ProductCode:                   *productCode,
@@ -164,7 +164,7 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Sub-merchant requires all fields: ID, invoice number, amount, and description")
 			os.Exit(1)
 		}
-		req.SubMerchants = []api2c2p.SubMerchant{
+		req.SubMerchants = []api2c2p.PaymentTokenSubMerchant{
 			{
 				MerchantID:  *subMerchantID,
 				Amount:      *subMerchantAmount,
@@ -178,13 +178,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if resp != nil {
-			fmt.Fprintf(os.Stderr, "Response Code: %s (%s)\n", resp.RespCode, api2c2p.ResponseCode(resp.RespCode).Description())
+			fmt.Fprintf(os.Stderr, "Response Code: %s (%s)\n", resp.RespCode, api2c2p.PaymentResponseCode(resp.RespCode).Description())
 		}
 		os.Exit(1)
 	}
 
 	fmt.Printf("Response Code: %s\n", resp.RespCode)
-	fmt.Printf("Response Description: %s\n", api2c2p.ResponseCode(resp.RespCode).Description())
+	fmt.Printf("Response Description: %s\n", api2c2p.PaymentResponseCode(resp.RespCode).Description())
 	fmt.Printf("Payment Token: %s\n", resp.PaymentToken)
 	fmt.Printf("Web Payment URL: %s\n", resp.WebPaymentURL)
 }

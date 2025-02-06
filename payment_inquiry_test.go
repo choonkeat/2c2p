@@ -99,7 +99,7 @@ func TestPaymentInquiry(t *testing.T) {
 
 		// Create JWT token from response data
 		mockClient := NewClient("JT01", "your_secret_key", ts.URL)
-		payload, err := mockClient.GenerateJWTToken(responseData)
+		token, err := mockClient.generateJWTToken(responseData)
 		if err != nil {
 			t.Errorf("Error generating JWT token: %v", err)
 			return
@@ -108,7 +108,7 @@ func TestPaymentInquiry(t *testing.T) {
 		// Write response
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
-			"payload": payload,
+			"payload": token,
 		})
 	}))
 	defer ts.Close()

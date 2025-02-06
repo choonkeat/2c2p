@@ -10,40 +10,40 @@ import (
 	"strings"
 )
 
-// Request3DSType represents the 3DS request type
-type Request3DSType string
+// PaymentTokenRequest3DSType represents the 3DS request type
+type PaymentTokenRequest3DSType string
 
 const (
 	// Request3DSYes - Perform 3DS check
-	Request3DSYes Request3DSType = "Y"
+	Request3DSYes PaymentTokenRequest3DSType = "Y"
 	// Request3DSNo - Do not perform 3DS check
-	Request3DSNo Request3DSType = "N"
+	Request3DSNo PaymentTokenRequest3DSType = "N"
 	// Request3DSFrictionless - Perform frictionless flow
-	Request3DSFrictionless Request3DSType = "F"
+	Request3DSFrictionless PaymentTokenRequest3DSType = "F"
 )
 
-// PaymentChannel represents a payment channel
-type PaymentChannel string
+// PaymentTokenPaymentChannel represents a payment channel
+type PaymentTokenPaymentChannel string
 
 const (
 	// PaymentChannelCC represents credit card payment
-	PaymentChannelCC PaymentChannel = "CC"
+	PaymentChannelCC PaymentTokenPaymentChannel = "CC"
 	// PaymentChannelIPP represents installment payment plan
-	PaymentChannelIPP PaymentChannel = "IPP"
+	PaymentChannelIPP PaymentTokenPaymentChannel = "IPP"
 	// PaymentChannelAPM represents alternative payment methods
-	PaymentChannelAPM PaymentChannel = "APM"
+	PaymentChannelAPM PaymentTokenPaymentChannel = "APM"
 )
 
-// InterestType represents the installment interest type
-type InterestType string
+// PaymentTokenInterestType represents the installment interest type
+type PaymentTokenInterestType string
 
 const (
 	// InterestTypeAll shows all available interest options
-	InterestTypeAll InterestType = "A"
+	InterestTypeAll PaymentTokenInterestType = "A"
 	// InterestTypeCustomer shows only customer pay interest options
-	InterestTypeCustomer InterestType = "C"
+	InterestTypeCustomer PaymentTokenInterestType = "C"
 	// InterestTypeMerchant shows only merchant pay interest options
-	InterestTypeMerchant InterestType = "M"
+	InterestTypeMerchant PaymentTokenInterestType = "M"
 )
 
 // PaymentTokenRequest represents a request to the Payment Token API
@@ -74,7 +74,7 @@ type PaymentTokenRequest struct {
 
 	// PaymentChannel is the list of enabled payment channels (optional)
 	// If empty, all payment channels will be used
-	PaymentChannel []PaymentChannel `json:"paymentChannel,omitempty"`
+	PaymentChannel []PaymentTokenPaymentChannel `json:"paymentChannel,omitempty"`
 
 	// AgentChannel is the list of enabled agent channels (optional)
 	// Required if paymentChannel includes "123"
@@ -84,7 +84,7 @@ type PaymentTokenRequest struct {
 	// Y - Enable 3DS (default)
 	// F - Force 3DS
 	// N - Disable 3DS
-	Request3DS Request3DSType `json:"request3DS,omitempty"`
+	Request3DS PaymentTokenRequest3DSType `json:"request3DS,omitempty"`
 
 	// ProtocolVersion is the 3DS protocol version (optional)
 	// Default: "2.1.0"
@@ -123,7 +123,7 @@ type PaymentTokenRequest struct {
 	// A - All available options (default)
 	// C - Customer Pay Interest Option ONLY
 	// M - Merchant Pay Interest Option ONLY
-	InterestType InterestType `json:"interestType,omitempty"`
+	InterestType PaymentTokenInterestType `json:"interestType,omitempty"`
 
 	// InstallmentPeriodFilterMonths specifies which installment periods to offer (optional)
 	InstallmentPeriodFilterMonths []int `json:"installmentPeriodFilter,omitempty"`
@@ -186,7 +186,7 @@ type PaymentTokenRequest struct {
 	FxProviderCode string `json:"fxProviderCode,omitempty"`
 
 	// FXRateID is the forex rate ID (optional)
-	FXRateID string `json:"fxRateId,omitempty"`
+	FXRateID string `json:"fxRateID,omitempty"`
 
 	// OriginalAmount is the original currency amount (optional)
 	OriginalAmount float64 `json:"originalAmount,omitempty"`
@@ -213,14 +213,13 @@ type PaymentTokenRequest struct {
 	ExternalSubMerchantID string `json:"externalSubMerchantID,omitempty"`
 
 	// SubMerchants is a list of sub-merchants for split payments (optional)
-	SubMerchants []SubMerchant `json:"subMerchants,omitempty"`
+	SubMerchants []PaymentTokenSubMerchant `json:"subMerchants,omitempty"`
 
-	// UIParams contains UI customization parameters (optional)
-	UIParams *UIParams `json:"uiParams,omitempty"`
+	// UIParams contains user interface parameters for pre-filling payment forms
+	UIParams *paymentTokenUiParams `json:"uiParams,omitempty"`
 }
 
-// ToMap converts PaymentTokenRequest to a map[string]string for JWT payload
-func (r *PaymentTokenRequest) ToMap() map[string]string {
+func (r *PaymentTokenRequest) toMap() map[string]string {
 	m := make(map[string]string)
 
 	// Required fields
@@ -430,58 +429,34 @@ func (r *PaymentTokenRequest) ToMap() map[string]string {
 	return m
 }
 
-// SubMerchant represents a sub-merchant for split payments
-type SubMerchant struct {
-	// MerchantID is the sub-merchant's 2C2P merchant ID (required)
-	// Max length: 8 characters
-	MerchantID string `json:"merchantID"`
-
-	// InvoiceNo is the sub-merchant's unique transaction ID (required)
-	// Max length: 30 characters
-	InvoiceNo string `json:"invoiceNo"`
-
-	// Amount is the payment amount for this sub-merchant (required)
-	Amount float64 `json:"amount"`
-
-	// Description is the payment description for this sub-merchant (required)
-	// Max length: 250 characters
-	Description string `json:"description"`
-}
-
-// UIParams represents the UI parameters for payment customization
-type UIParams struct {
+// paymentTokenUiParams represents UI parameters for payment token requests
+type paymentTokenUiParams struct {
 	// UserInfo contains customer information for pre-filling payment forms
-	UserInfo *UserInfo `json:"userInfo,omitempty"`
+	UserInfo *paymentTokenUserInfo `json:"userInfo,omitempty"`
 }
 
-// UserInfo represents customer information for payment forms
-type UserInfo struct {
+// paymentTokenUserInfo represents user information for payment token requests
+type paymentTokenUserInfo struct {
 	// Name is the customer's full name
-	// Max length: 255 characters
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 
 	// Email is the customer's email address
-	// Max length: 255 characters
-	Email string `json:"email,omitempty"`
+	Email string `json:"email"`
 
 	// Address is the customer's address
-	// Max length: 255 characters
-	Address string `json:"address,omitempty"`
+	Address string `json:"address"`
 
-	// MobileNo is the customer's mobile number without country code
-	// Max length: 50 characters
-	MobileNo string `json:"mobileNo,omitempty"`
+	// MobileNo is the customer's mobile number
+	MobileNo string `json:"mobileNo"`
 
-	// CountryCodeISO3166 is the customer's country code (ISO 3166-1 alpha-2)
-	// Example: "SG", "TH"
-	CountryCodeISO3166 string `json:"countryCode,omitempty"`
+	// CountryCodeISO3166 is the customer's country code (ISO 3166)
+	CountryCodeISO3166 string `json:"countryCode"`
 
-	// MobileNoPrefix is the customer's mobile number country code
-	// Example: "65" for Singapore
-	MobileNoPrefix string `json:"mobileNoPrefix,omitempty"`
+	// MobileNoPrefix is the customer's mobile number prefix
+	MobileNoPrefix string `json:"mobileNoPrefix"`
 
-	// CurrencyCodeISO4217 is the customer's preferred currency (ISO 4217)
-	CurrencyCodeISO4217 string `json:"currencyCode,omitempty"`
+	// CurrencyCodeISO4217 is the customer's preferred currency code (ISO 4217)
+	CurrencyCodeISO4217 string `json:"currencyCode"`
 }
 
 // PaymentTokenResponse represents the response from the Payment Token API
@@ -533,7 +508,7 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 	}
 
 	// Generate JWT token
-	token, err := c.GenerateJWTToken(jsonData)
+	token, err := c.generateJWTToken(jsonData)
 	if err != nil {
 		return nil, fmt.Errorf("generate jwt token: %w", err)
 	}
@@ -582,7 +557,7 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 
 	// If we got a JWT response, decode it
 	var tokenResp PaymentTokenResponse
-	if err := c.DecodeJWTToken(jwtResponse.Payload, &tokenResp); err != nil {
+	if err := c.decodeJWTToken(jwtResponse.Payload, &tokenResp); err != nil {
 		return nil, c.formatErrorWithDebug(fmt.Errorf("decode jwt token: %w", err), debug)
 	}
 
@@ -592,4 +567,22 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 	}
 
 	return &tokenResp, nil
+}
+
+// PaymentTokenSubMerchant represents a sub-merchant for split payments
+type PaymentTokenSubMerchant struct {
+	// MerchantID is the sub-merchant's 2C2P merchant ID (required)
+	// Max length: 8 characters
+	MerchantID string `json:"merchantID"`
+
+	// InvoiceNo is the sub-merchant's unique transaction ID (required)
+	// Max length: 30 characters
+	InvoiceNo string `json:"invoiceNo"`
+
+	// Amount is the payment amount for this sub-merchant (required)
+	Amount float64 `json:"amount"`
+
+	// Description is the payment description for this sub-merchant (required)
+	// Max length: 250 characters
+	Description string `json:"description"`
 }

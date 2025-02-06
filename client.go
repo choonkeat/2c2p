@@ -41,13 +41,12 @@ func NewClient(secretKey, merchantID string, baseURL ...string) *Client {
 	}
 }
 
-// endpoint returns the full URL for an API endpoint
 func (c *Client) endpoint(path string) string {
 	return fmt.Sprintf("%s/payment/4.3/%s", c.BaseURL, path)
 }
 
-// GenerateJWTToken generates a JWT token for the given payload
-func (c *Client) GenerateJWTToken(payload []byte) (string, error) {
+// generateJWTToken generates a JWT token for the given payload
+func (c *Client) generateJWTToken(payload []byte) (string, error) {
 	// Create header
 	header := map[string]string{
 		"typ": "JWT",
@@ -75,8 +74,8 @@ func (c *Client) GenerateJWTToken(payload []byte) (string, error) {
 	return token, nil
 }
 
-// DecodeJWTToken decodes a JWT token and verifies its signature
-func (c *Client) DecodeJWTToken(token string, v interface{}) error {
+// decodeJWTToken decodes a JWT token and verifies its signature
+func (c *Client) decodeJWTToken(token string, v interface{}) error {
 	parts := bytes.Split([]byte(token), []byte{'.'})
 	if len(parts) != 3 {
 		return fmt.Errorf("invalid token format")
@@ -104,14 +103,12 @@ func (c *Client) DecodeJWTToken(token string, v interface{}) error {
 	return nil
 }
 
-// debugRequest represents a debug request
 type debugRequest struct {
 	URL     string
 	Headers http.Header
 	Body    string
 }
 
-// debugResponse represents a debug response
 type debugResponse struct {
 	Status      string
 	Headers     http.Header
@@ -119,13 +116,11 @@ type debugResponse struct {
 	ElapsedTime time.Duration
 }
 
-// debugInfo represents debug information for a request/response pair
 type debugInfo struct {
 	Request  debugRequest
 	Response debugResponse
 }
 
-// doRequestWithDebug performs an HTTP request and returns debug information
 func (c *Client) doRequestWithDebug(req *http.Request) (*http.Response, *debugInfo, error) {
 	// Create debug info
 	debug := &debugInfo{
@@ -170,7 +165,6 @@ func (c *Client) doRequestWithDebug(req *http.Request) (*http.Response, *debugIn
 	return resp, debug, nil
 }
 
-// formatErrorWithDebug formats an error with debug information
 func (c *Client) formatErrorWithDebug(err error, debug *debugInfo) error {
 	if debug == nil {
 		return err
@@ -182,7 +176,7 @@ func (c *Client) formatErrorWithDebug(err error, debug *debugInfo) error {
 		RespDesc string `json:"respDesc"`
 	}
 	if err := json.Unmarshal([]byte(debug.Response.Body), &response); err == nil {
-		respCode := ResponseCode(response.RespCode)
+		respCode := PaymentResponseCode(response.RespCode)
 		return fmt.Errorf("%w\nRequest URL: %s\nRequest Headers: %v\nRequest Body: %s\nResponse Status: %s\nResponse Headers: %v\nResponse Body: %s\nResponse Time: %v\nResponse Code: %s (%s)",
 			err,
 			debug.Request.URL,
@@ -209,7 +203,6 @@ func (c *Client) formatErrorWithDebug(err error, debug *debugInfo) error {
 	)
 }
 
-// newRequest creates a new HTTP request with common headers
 func (c *Client) newRequest(method, path string, body []byte) (*http.Request, error) {
 	req, err := http.NewRequest(method, c.endpoint(path), bytes.NewReader(body))
 	if err != nil {

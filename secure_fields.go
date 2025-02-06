@@ -2,11 +2,15 @@ package api2c2p
 
 // `Server-to-server API - Frontend return URL` must be set in the 2c2p portal
 import (
+	"crypto/hmac"
+	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/hex"
 	"encoding/pem"
+	"encoding/xml"
 	"fmt"
+	"strings"
 
 	"github.com/fullsailor/pkcs7"
 )
@@ -33,9 +37,14 @@ type SecureFieldsPaymentResponse struct {
 	RespDesc    string `json:"respDesc"`    // Response description
 }
 
-// GetSecureFieldsJSURLs returns the URLs for required JavaScript files
+// FormValuer is an interface for getting form values
+type FormValuer interface {
+	PostFormValue(string) string
+}
+
+// SecureFieldsScriptURLs returns the URLs for required JavaScript files
 // Set sandbox to true for testing environment
-func GetSecureFieldsJSURLs(sandbox bool) (secureFieldsJS, securePay string) {
+func SecureFieldsScriptURLs(sandbox bool) (secureFieldsJS, securePay string) {
 	if sandbox {
 		return "https://2c2p-uat-cloudfront.s3-ap-southeast-1.amazonaws.com/2C2PPGW/secureField/my2c2p-secureFields.1.0.0.min.js",
 			"https://demo2.2c2p.com/2C2PFrontEnd/SecurePayment/api/my2c2p-sandbox.1.7.3.min.js"
@@ -45,9 +54,9 @@ func GetSecureFieldsJSURLs(sandbox bool) (secureFieldsJS, securePay string) {
 		"https://2c2p.com/2C2PFrontEnd/SecurePayment/api/my2c2p.1.7.3.min.js"
 }
 
-// GenerateSecureFieldsHTML generates the HTML template for secure fields form
-func GenerateSecureFieldsHTML(formAction string, sandbox bool) string {
-	secureFieldsJS, securePayJS := GetSecureFieldsJSURLs(sandbox)
+// SecureFieldsFormHTML generates the HTML template for secure fields form
+func SecureFieldsFormHTML(merchantID, secretKey, formAction string, sandbox bool) string {
+	secureFieldsJS, securePayJS := SecureFieldsScriptURLs(sandbox)
 	return `<!DOCTYPE html>
 <html>
 <head>
@@ -127,21 +136,212 @@ func GenerateSecureFieldsHTML(formAction string, sandbox bool) string {
 </html>`
 }
 
-// DecodePaymentResponse decodes the payment response from 2C2P
-func DecodePaymentResponse(paymentResponse string) (*SecureFieldsPaymentResponse, error) {
-	// Decode base64URL string
-	decoded, err := base64.RawURLEncoding.DecodeString(paymentResponse)
+func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, details struct {
+	Amount       string
+	CurrencyCode string
+	Description  string
+	CustomerName string
+	CountryCode  string
+	StoreCard    string
+	UserDefined1 string
+	UserDefined2 string
+	UserDefined3 string
+	UserDefined4 string
+	UserDefined5 string
+}, encryptedCardInfo string) string {
+	// Construct signature string with all fields in the same order as PHP
+	return fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+		apiVersion,           // version
+		timestamp,            // timestamp
+		merchantID,           // merchantID
+		invoiceNo,            // uniqueTransactionCode
+		details.Description,  // desc
+		details.Amount,       // amt
+		details.CurrencyCode, // currencyCode
+		"",                   // paymentChannel
+		"",                   // storeCardUniqueID
+		"",                   // panBank
+		details.CountryCode,  // country
+		details.CustomerName, // cardholderName
+		"",                   // cardholderEmail
+		"",                   // payCategoryID
+		details.UserDefined1, // userDefined1
+		details.UserDefined2, // userDefined2
+		details.UserDefined3, // userDefined3
+		details.UserDefined4, // userDefined4
+		details.UserDefined5, // userDefined5
+		details.StoreCard,    // storeCard
+		"",                   // ippTransaction
+		"",                   // installmentPeriod
+		"",                   // interestType
+		"",                   // recurring
+		"",                   // invoicePrefix
+		"",                   // recurringAmount
+		"",                   // allowAccumulate
+		"",                   // maxAccumulateAmt
+		"",                   // recurringInterval
+		"",                   // recurringCount
+		"",                   // chargeNextDate
+		"",                   // promotion
+		"Y",                  // request3DS
+		"",                   // statementDescriptor
+		"",                   // agentCode
+		"",                   // channelCode
+		"",                   // paymentExpiry
+		"",                   // mobileNo
+		"",                   // tokenizeWithoutAuthorization
+		encryptedCardInfo,    // encryptedCardInfo
+	)
+}
+
+func createHMAC(data, key string) string {
+	h := hmac.New(sha1.New, []byte(key))
+	h.Write([]byte(data))
+	return strings.ToUpper(hex.EncodeToString(h.Sum(nil)))
+}
+
+// SecureFieldsPaymentPayload contains all required fields to render a 2C2P payment form
+type SecureFieldsPaymentPayload struct {
+	FormURL    string
+	FormFields map[string]string
+}
+
+func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, invoiceNo string, paymentDetails struct {
+	Amount       string
+	CurrencyCode string
+	Description  string
+	CustomerName string
+	CountryCode  string
+	StoreCard    string
+	UserDefined1 string
+	UserDefined2 string
+	UserDefined3 string
+	UserDefined4 string
+	UserDefined5 string
+}, form FormValuer) SecureFieldsPaymentPayload {
+	encryptedCardInfo := form.PostFormValue("encryptedCardInfo")
+
+	// Create HMAC signature string
+	strToHash := createSignatureString(
+		"9.4", // API version
+		timestamp,
+		merchantID,
+		invoiceNo,
+		paymentDetails,
+		encryptedCardInfo,
+	)
+
+	// Create HMAC hash
+	hmacHash := createHMAC(strToHash, secretKey)
+
+	// Create payment request XML
+	xmlStr := fmt.Sprintf(`<PaymentRequest>
+		<version>9.4</version>
+		<timeStamp>%s</timeStamp>
+		<merchantID>%s</merchantID>
+		<uniqueTransactionCode>%s</uniqueTransactionCode>
+		<desc>%s</desc>
+		<amt>%s</amt>
+		<currencyCode>%s</currencyCode>
+		<paymentChannel></paymentChannel>
+		<panCountry>%s</panCountry>
+		<cardholderName>%s</cardholderName>
+		<request3DS>Y</request3DS>
+		<secureHash>%s</secureHash>
+		<storeCard>%s</storeCard>
+		<encCardData>%s</encCardData>
+		<userDefined1>%s</userDefined1>
+		<userDefined2>%s</userDefined2>
+		<userDefined3>%s</userDefined3>
+		<userDefined4>%s</userDefined4>
+		<userDefined5>%s</userDefined5>
+	</PaymentRequest>`,
+		timestamp,
+		merchantID,
+		invoiceNo,
+		paymentDetails.Description,
+		paymentDetails.Amount,
+		paymentDetails.CurrencyCode,
+		paymentDetails.CountryCode,
+		paymentDetails.CustomerName,
+		hmacHash,
+		paymentDetails.StoreCard,
+		encryptedCardInfo,
+		paymentDetails.UserDefined1,
+		paymentDetails.UserDefined2,
+		paymentDetails.UserDefined3,
+		paymentDetails.UserDefined4,
+		paymentDetails.UserDefined5,
+	)
+
+	// Base64 encode the XML
+	return SecureFieldsPaymentPayload{
+		FormURL: c2pURL + "/2C2PFrontEnd/SecurePayment/PaymentAuth.aspx",
+		FormFields: map[string]string{
+			"paymentRequest": base64.StdEncoding.EncodeToString([]byte(xmlStr)),
+		},
+	}
+}
+
+type PaymentResponseBackEnd struct {
+	XMLName               xml.Name `xml:"PaymentResponse"`
+	Version               string   `xml:"version"`
+	TimeStamp             string   `xml:"timeStamp"`
+	MerchantID            string   `xml:"merchantID"`
+	RespCode              string   `xml:"respCode"`
+	PAN                   string   `xml:"pan"`
+	Amount                string   `xml:"amt"`
+	UniqueTransactionCode string   `xml:"uniqueTransactionCode"`
+	TranRef               string   `xml:"tranRef"`
+	ApprovalCode          string   `xml:"approvalCode"`
+	RefNumber             string   `xml:"refNumber"`
+	ECI                   string   `xml:"eci"`
+	DateTime              string   `xml:"dateTime"`
+	Status                string   `xml:"status"`
+	FailReason            string   `xml:"failReason"` // can contain successful reason too
+	UserDefined1          string   `xml:"userDefined1"`
+	UserDefined2          string   `xml:"userDefined2"`
+	UserDefined3          string   `xml:"userDefined3"`
+	UserDefined4          string   `xml:"userDefined4"`
+	UserDefined5          string   `xml:"userDefined5"`
+	IPPPeriod             string   `xml:"ippPeriod"`
+	IPPInterestType       string   `xml:"ippInterestType"`
+	IPPInterestRate       string   `xml:"ippInterestRate"`
+	IPPMerchantAbsorbRate string   `xml:"ippMerchantAbsorbRate"`
+	PaidChannel           string   `xml:"paidChannel"`
+	PaidAgent             string   `xml:"paidAgent"`
+	PaymentChannel        string   `xml:"paymentChannel"`
+	BackendInvoice        string   `xml:"backendInvoice"`
+	IssuerCountry         string   `xml:"issuerCountry"`
+	IssuerCountryA3       string   `xml:"issuerCountryA3"`
+	BankName              string   `xml:"bankName"`
+	CardType              string   `xml:"cardType"`
+	ProcessBy             string   `xml:"processBy"`
+	PaymentScheme         string   `xml:"paymentScheme"`
+	PaymentID             string   `xml:"paymentID"`
+	AcquirerResponseCode  string   `xml:"acquirerResponseCode"`
+	SchemePaymentID       string   `xml:"schemePaymentID"`
+	HashValue             string   `xml:"hashValue"`
+}
+
+// DecryptPaymentResponseBackend decrypts and parses the payment response from 2C2P
+func DecryptPaymentResponseBackend(r FormValuer, privateKey []byte) (PaymentResponseBackEnd, []byte, error) {
+	encryptedResponse := r.PostFormValue("paymentResponse")
+
+	// Decrypt the response
+	decrypted, err := DecryptPKCS7([]byte(encryptedResponse), privateKey)
 	if err != nil {
-		return nil, fmt.Errorf("error decoding base64URL: %w", err)
+		return PaymentResponseBackEnd{}, nil, fmt.Errorf("error decrypting response: %w", err)
 	}
 
-	// Parse JSON
-	var response SecureFieldsPaymentResponse
-	if err := json.Unmarshal(decoded, &response); err != nil {
-		return nil, fmt.Errorf("error unmarshaling JSON: %w", err)
+	// Parse XML response
+	var response PaymentResponseBackEnd
+	err = xml.Unmarshal(decrypted, &response)
+	if err != nil {
+		return PaymentResponseBackEnd{}, nil, fmt.Errorf("error parsing XML response: %w", err)
 	}
 
-	return &response, nil
+	return response, decrypted, nil
 }
 
 // DecryptPKCS7 decrypts base64-encoded PKCS7 enveloped data using certificate and private key from PEM data.

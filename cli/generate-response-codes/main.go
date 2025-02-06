@@ -10,7 +10,7 @@ import (
 	"text/template"
 )
 
-type ResponseCode struct {
+type PaymentResponseCode struct {
 	Code        string
 	Description string
 }
@@ -21,11 +21,11 @@ package api2c2p
 
 import "fmt"
 
-// ResponseCode represents a 2C2P response code
-type ResponseCode string
+// PaymentResponseCode represents a 2C2P response code
+type PaymentResponseCode string
 
 // Description returns a human-readable description of the response code
-func (c ResponseCode) Description() string {
+func (c PaymentResponseCode) Description() string {
 	switch c {
 	{{- range .}}
 	case "{{.Code}}":
@@ -39,7 +39,7 @@ func (c ResponseCode) Description() string {
 // Known response codes
 const (
 	{{- range .}}
-	RespCode{{.Code}} ResponseCode = "{{.Code}}" // {{.Description}}
+	RespCode{{.Code}} PaymentResponseCode = "{{.Code}}" // {{.Description}}
 	{{- end}}
 )
 `
@@ -65,7 +65,7 @@ func main() {
 	}
 
 	// Parse rows
-	var codes []ResponseCode
+	var codes []PaymentResponseCode
 	rows := rowRegex.FindAllStringSubmatch(tableMatch[1], -1)
 	for _, row := range rows {
 		if len(row) < 3 {
@@ -76,7 +76,7 @@ func main() {
 		if code == "Code" || code == "" {
 			continue
 		}
-		codes = append(codes, ResponseCode{
+		codes = append(codes, PaymentResponseCode{
 			Code:        code,
 			Description: desc,
 		})

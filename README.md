@@ -63,6 +63,74 @@ For implementation details, refer to:
 - Backend notification handling: See `handlePaymentNotification` in `cli/secure_fields/main.go`
 - Response field definitions: See `PaymentResponseBackEnd` in `payment_response_backend.go`
 
+## Code Organization Principles
+
+The codebase follows a clear separation of concerns that makes it both testable and maintainable:
+
+1. **Core SDK Functions (`secure_fields.go`)**
+   - Contains all core business logic and data structures
+   - Functions are pure and return testable values
+   - Handles encryption, decryption, and data transformation
+   - Exposes clean interfaces that hide implementation complexity
+
+2. **Test Coverage (`secure_fields_test.go`)**
+   - Comprehensive tests for all core functions
+   - Uses mock implementations where needed (e.g., `mockFormValuer`)
+   - Includes test data files for consistent verification
+   - Tests both success and error scenarios
+
+3. **CLI Implementation (`cli/secure_fields/main.go`)**
+   - Remains implementation-agnostic by importing the SDK
+   - Focuses on HTTP handlers and CLI-specific concerns
+   - Delegates all business logic to the SDK
+   - Acts as a reference implementation
+
+This organization ensures:
+- The SDK is easy to test in isolation
+- Implementation details are encapsulated
+- New features can be added without modifying client code
+- The codebase remains maintainable and extensible
+
+When adding new APIs, follow these principles:
+1. Add core functionality to the SDK layer
+2. Write comprehensive tests
+3. Update CLI only for new endpoint handling
+4. Keep implementation details in the SDK
+
+## Code Organization Practices
+
+1. **Unexport Unused Types and Functions**:
+   - Types, functions, and methods that are not used in `cli/*.go` should be unexported
+   - This keeps the public API surface minimal and focused on actual usage
+   ```go
+   // Good - unexported since only used internally
+   type debugInfo struct {
+       Request  *debugRequest
+       Response *debugResponse
+   }
+
+   // Bad - exported but not used in cli/*.go
+   type DebugInfo struct {
+       Request  *DebugRequest
+       Response *DebugResponse
+   }
+   ```
+
+2. **Export Struct Fields for JSON**:
+   - Prefer exported struct fields over custom `MarshalJSON`/`UnmarshalJSON` methods
+   - This reduces code complexity and improves maintainability
+   ```go
+   // Good - uses exported field
+   type UIParams struct {
+       UserInfo *UserInfo `json:"userInfo,omitempty"`
+   }
+
+   // Bad - requires custom marshal/unmarshal
+   type UIParams struct {
+       userInfo *userInfo `json:"userInfo"`
+   }
+   ```
+
 ## Field Naming Conventions
 
 When defining request/response types in Go, follow these conventions:
@@ -149,4 +217,3 @@ For example, see the Payment Inquiry API implementation:
 - API implementation in `payment_inquiry.go`
 - Tests in `payment_inquiry_test.go`
 - CLI tool in `cli/payment-inquiry/main.go`
-

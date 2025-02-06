@@ -2,6 +2,7 @@ package api2c2p
 
 import (
 	"encoding/json"
+	"reflect"
 	"testing"
 )
 
@@ -11,9 +12,9 @@ func TestPaymentTokenRequest_SignatureString(t *testing.T) {
 		CurrencyCodeISO4217:           "THB",
 		Amount:                        100.00,
 		Description:                   "Test Payment",
-		PaymentChannel:                []PaymentChannel{PaymentChannelCC},
+		PaymentChannel:                []PaymentTokenPaymentChannel{PaymentChannelCC},
 		AgentChannel:                  []string{},
-		Request3DS:                    Request3DSType("Y"),
+		Request3DS:                    PaymentTokenRequest3DSType("Y"),
 		CardTokens:                    []string{},
 		TokenizeOnly:                  false,
 		StoreCredentials:              "",
@@ -46,12 +47,15 @@ func TestPaymentTokenRequest_SignatureString(t *testing.T) {
 		UserDefined5:                  "user5",
 		StatementDescriptor:           "Test Payment",
 	}
-	req.UIParams = &UIParams{
-		UserInfo: &UserInfo{
-			Name:               "John Doe",
-			Email:              "john@example.com",
-			MobileNo:           "0123456789",
-			CountryCodeISO3166: "TH",
+	req.UIParams = &paymentTokenUiParams{
+		UserInfo: &paymentTokenUserInfo{
+			Name:                "John Doe",
+			Email:               "john@example.com",
+			MobileNo:            "0123456789",
+			CountryCodeISO3166:  "TH",
+			MobileNoPrefix:      "",
+			CurrencyCodeISO4217: "",
+			Address:             "",
 		},
 	}
 
@@ -69,41 +73,56 @@ func TestPaymentTokenRequest_SignatureString(t *testing.T) {
 
 	// Test field values
 	if unmarshaled.MerchantID != req.MerchantID {
-		t.Errorf("Expected MerchantID %s, got %s", req.MerchantID, unmarshaled.MerchantID)
+		t.Errorf("Expected merchantID %s, got %s", req.MerchantID, unmarshaled.MerchantID)
 	}
 
 	if unmarshaled.CurrencyCodeISO4217 != req.CurrencyCodeISO4217 {
-		t.Errorf("Expected CurrencyCodeISO4217 %s, got %s", req.CurrencyCodeISO4217, unmarshaled.CurrencyCodeISO4217)
+		t.Errorf("Expected currencyCodeISO4217 %s, got %s", req.CurrencyCodeISO4217, unmarshaled.CurrencyCodeISO4217)
 	}
 
 	if unmarshaled.Amount != req.Amount {
-		t.Errorf("Expected Amount %f, got %f", req.Amount, unmarshaled.Amount)
+		t.Errorf("Expected amount %f, got %f", req.Amount, unmarshaled.Amount)
 	}
 
 	if unmarshaled.RecurringIntervalDays != req.RecurringIntervalDays {
-		t.Errorf("Expected RecurringIntervalDays %d, got %d", req.RecurringIntervalDays, unmarshaled.RecurringIntervalDays)
+		t.Errorf("Expected recurringIntervalDays %d, got %d", req.RecurringIntervalDays, unmarshaled.RecurringIntervalDays)
 	}
 
 	if unmarshaled.ChargeNextDateYYYYMMDD != req.ChargeNextDateYYYYMMDD {
-		t.Errorf("Expected ChargeNextDateYYYYMMDD %s, got %s", req.ChargeNextDateYYYYMMDD, unmarshaled.ChargeNextDateYYYYMMDD)
+		t.Errorf("Expected chargeNextDateYYYYMMDD %s, got %s", req.ChargeNextDateYYYYMMDD, unmarshaled.ChargeNextDateYYYYMMDD)
 	}
 
 	if unmarshaled.PaymentExpiryYYYYMMDDHHMMSS != req.PaymentExpiryYYYYMMDDHHMMSS {
-		t.Errorf("Expected PaymentExpiryYYYYMMDDHHMMSS %s, got %s", req.PaymentExpiryYYYYMMDDHHMMSS, unmarshaled.PaymentExpiryYYYYMMDDHHMMSS)
+		t.Errorf("Expected paymentExpiryYYYYMMDDHHMMSS %s, got %s", req.PaymentExpiryYYYYMMDDHHMMSS, unmarshaled.PaymentExpiryYYYYMMDDHHMMSS)
 	}
 
-	if unmarshaled.UIParams.UserInfo.CountryCodeISO3166 != req.UIParams.UserInfo.CountryCodeISO3166 {
-		t.Errorf("Expected UserInfo.CountryCodeISO3166 %s, got %s", req.UIParams.UserInfo.CountryCodeISO3166, unmarshaled.UIParams.UserInfo.CountryCodeISO3166)
+	if unmarshaled.UIParams == nil {
+		t.Error("Expected UIParams to not be nil")
+	} else if unmarshaled.UIParams.UserInfo == nil {
+		t.Error("Expected UIParams.UserInfo to not be nil")
+	} else if !reflect.DeepEqual(unmarshaled.UIParams.UserInfo, req.UIParams.UserInfo) {
+		t.Errorf("Expected UIParams.UserInfo to be %+v, got %+v", req.UIParams.UserInfo, unmarshaled.UIParams.UserInfo)
 	}
 }
 
 func TestPaymentTokenRequest_SignatureString_Simple(t *testing.T) {
 	req := &PaymentTokenRequest{
 		MerchantID:          "JT01",
-		CurrencyCodeISO4217: "THB",
-		Amount:              100.00,
-		Description:         "Test Payment",
-		InvoiceNo:           "inv001",
+		InvoiceNo:           "1234567890",
+		Description:         "Test payment",
+		Amount:              99.10,
+		CurrencyCodeISO4217: "702",
+		UIParams: &paymentTokenUiParams{
+			UserInfo: &paymentTokenUserInfo{
+				Name:                "John Doe",
+				Email:               "john@example.com",
+				MobileNo:            "0123456789",
+				CountryCodeISO3166:  "TH",
+				MobileNoPrefix:      "",
+				CurrencyCodeISO4217: "",
+				Address:             "",
+			},
+		},
 	}
 
 	// Test JSON marshaling
@@ -120,19 +139,28 @@ func TestPaymentTokenRequest_SignatureString_Simple(t *testing.T) {
 
 	// Test field values
 	if unmarshaled.MerchantID != req.MerchantID {
-		t.Errorf("Expected MerchantID %s, got %s", req.MerchantID, unmarshaled.MerchantID)
-	}
-
-	if unmarshaled.CurrencyCodeISO4217 != req.CurrencyCodeISO4217 {
-		t.Errorf("Expected CurrencyCodeISO4217 %s, got %s", req.CurrencyCodeISO4217, unmarshaled.CurrencyCodeISO4217)
-	}
-
-	if unmarshaled.Amount != req.Amount {
-		t.Errorf("Expected Amount %f, got %f", req.Amount, unmarshaled.Amount)
+		t.Errorf("Expected merchantID %s, got %s", req.MerchantID, unmarshaled.MerchantID)
 	}
 
 	if unmarshaled.InvoiceNo != req.InvoiceNo {
-		t.Errorf("Expected InvoiceNo %s, got %s", req.InvoiceNo, unmarshaled.InvoiceNo)
+		t.Errorf("Expected invoiceNo %s, got %s", req.InvoiceNo, unmarshaled.InvoiceNo)
+	}
+
+	if unmarshaled.Amount != req.Amount {
+		t.Errorf("Expected amount %f, got %f", req.Amount, unmarshaled.Amount)
+	}
+
+	got := req.toMap()
+	if got["merchantID"] != req.MerchantID {
+		t.Errorf("Expected merchantID %s, got %s", req.MerchantID, got["merchantID"])
+	}
+
+	if got["invoiceNo"] != req.InvoiceNo {
+		t.Errorf("Expected invoiceNo %s, got %s", req.InvoiceNo, got["invoiceNo"])
+	}
+
+	if got["currencyCode"] != req.CurrencyCodeISO4217 {
+		t.Errorf("Expected currencyCode %s, got %s", req.CurrencyCodeISO4217, got["currencyCode"])
 	}
 }
 
@@ -143,7 +171,7 @@ func TestPaymentTokenRequest_ToMap(t *testing.T) {
 		Description:                   "Test payment",
 		Amount:                        100.50,
 		CurrencyCodeISO4217:           "THB",
-		PaymentChannel:                []PaymentChannel{PaymentChannelCC},
+		PaymentChannel:                []PaymentTokenPaymentChannel{PaymentChannelCC},
 		AgentChannel:                  []string{"agent1"},
 		Request3DS:                    Request3DSYes,
 		CardTokens:                    []string{"token1"},
@@ -176,7 +204,7 @@ func TestPaymentTokenRequest_ToMap(t *testing.T) {
 		UserDefined4:                  "user4",
 		UserDefined5:                  "user5",
 		StatementDescriptor:           "STMT*DESC",
-		SubMerchants: []SubMerchant{
+		SubMerchants: []PaymentTokenSubMerchant{
 			{
 				MerchantID:  "sub123",
 				Amount:      50.25,
@@ -184,9 +212,20 @@ func TestPaymentTokenRequest_ToMap(t *testing.T) {
 				Description: "Sub merchant payment",
 			},
 		},
+		UIParams: &paymentTokenUiParams{
+			UserInfo: &paymentTokenUserInfo{
+				Name:                "John Doe",
+				Email:               "john@example.com",
+				MobileNo:            "0123456789",
+				CountryCodeISO3166:  "TH",
+				MobileNoPrefix:      "",
+				CurrencyCodeISO4217: "",
+				Address:             "",
+			},
+		},
 	}
 
-	m := req.ToMap()
+	m := req.toMap()
 
 	// Test a few key fields
 	if m["merchantID"] != req.MerchantID {

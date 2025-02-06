@@ -33,13 +33,13 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if resp != nil {
-			fmt.Fprintf(os.Stderr, "Response Code: %s (%s)\n", resp.RespCode, api2c2p.ResponseCode(resp.RespCode).Description())
+			fmt.Fprintf(os.Stderr, "Response Code: %s (%s)\n", resp.RespCode, api2c2p.PaymentResponseCode(resp.RespCode).Description())
 		}
 		os.Exit(1)
 	}
 
 	fmt.Printf("Response Code: %s\n", resp.RespCode)
-	fmt.Printf("Response Description: %s\n", api2c2p.ResponseCode(resp.RespCode).Description())
+	fmt.Printf("Response Description: %s\n", api2c2p.PaymentResponseCode(resp.RespCode).Description())
 	fmt.Printf("Transaction Status: %s\n", resp.TransactionStatus)
 	fmt.Printf("Amount: %.2f\n", resp.Amount)
 	fmt.Printf("Currency Code: %s\n", resp.CurrencyCode)
