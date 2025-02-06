@@ -116,13 +116,23 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 		CustomerName string
 		CountryCode  string // ISO 3166
 		StoreCard    string // Y/N
+		UserDefined1 string
+		UserDefined2 string
+		UserDefined3 string
+		UserDefined4 string
+		UserDefined5 string
 	}{
-		Amount:       "000000010010", // $100.10
+		Amount:       "000000009910", // $100.10
 		CurrencyCode: "702",          // SGD
 		Description:  "1 room for 2 nights",
 		CustomerName: "John Doe",
 		CountryCode:  "SG",
 		StoreCard:    "Y",
+		UserDefined1: "1",
+		UserDefined2: "2",
+		UserDefined3: "3",
+		UserDefined4: "4",
+		UserDefined5: "5",
 	}
 
 	// Create HMAC signature string
@@ -152,6 +162,11 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 		<secureHash>%s</secureHash>
 		<storeCard>%s</storeCard>
 		<encCardData>%s</encCardData>
+		<userDefined1>%s</userDefined1>
+		<userDefined2>%s</userDefined2>
+		<userDefined3>%s</userDefined3>
+		<userDefined4>%s</userDefined4>
+		<userDefined5>%s</userDefined5>
 	</PaymentRequest>`,
 		timestamp,
 		*merchantID,
@@ -164,6 +179,11 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 		hmacHash,
 		paymentDetails.StoreCard,
 		encryptedCardInfo,
+		paymentDetails.UserDefined1,
+		paymentDetails.UserDefined2,
+		paymentDetails.UserDefined3,
+		paymentDetails.UserDefined4,
+		paymentDetails.UserDefined5,
 	)
 
 	// Base64 encode the XML
@@ -228,6 +248,11 @@ func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, 
 	CustomerName string
 	CountryCode  string
 	StoreCard    string
+	UserDefined1 string
+	UserDefined2 string
+	UserDefined3 string
+	UserDefined4 string
+	UserDefined5 string
 }, encryptedCardInfo string) string {
 	// Construct signature string with all fields in the same order as PHP
 	return fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
@@ -245,11 +270,11 @@ func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, 
 		details.CustomerName, // cardholderName
 		"",                   // cardholderEmail
 		"",                   // payCategoryID
-		"",                   // userDefined1
-		"",                   // userDefined2
-		"",                   // userDefined3
-		"",                   // userDefined4
-		"",                   // userDefined5
+		details.UserDefined1, // userDefined1
+		details.UserDefined2, // userDefined2
+		details.UserDefined3, // userDefined3
+		details.UserDefined4, // userDefined4
+		details.UserDefined5, // userDefined5
 		details.StoreCard,    // storeCard
 		"",                   // ippTransaction
 		"",                   // installmentPeriod
