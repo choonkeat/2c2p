@@ -8,6 +8,7 @@ A Go client library for integrating with the 2C2P Payment Gateway API (v4.3.1).
 - Payment Inquiry API support
 - Payment Token API support
 - SecureFields integration for PCI-compliant card data collection
+- QR Payment support (VISA QR, Master Card QR, UPI QR)
 - CLI tools for API testing and utilities
 - Comprehensive test coverage
 
@@ -25,6 +26,7 @@ Always refer to the official 2C2P API documentation:
 - [Payment Inquiry API](https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry)
 - [Using SecureFields](https://developer.2c2p.com/v4.3.1/docs/using-securefields)
 - [Payment Response Parameters](https://developer.2c2p.com/v4.3.1/docs/api-payment-response-back-end-parameter)
+- [QR Payment API](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment)
 
 ## Usage
 
@@ -32,8 +34,8 @@ Always refer to the official 2C2P API documentation:
 
 ```go
 client := api2c2p.NewClient(
-    "your_merchant_id",
     "your_secret_key",
+    "your_merchant_id",
     "https://sandbox-pgw.2c2p.com", // or https://pgw.2c2p.com for production
 )
 ```
@@ -63,27 +65,69 @@ For implementation details, refer to:
 - Backend notification handling: See `handlePaymentNotification` in `cli/secure_fields/main.go`
 - Response field definitions: See `PaymentResponseBackEnd` in `payment_response_backend.go`
 
-## Code Organization Principles
+## Code Organization and Implementation Principles
 
-The codebase follows a clear separation of concerns that makes it both testable and maintainable:
+The codebase follows a clear separation of concerns that makes it both testable and maintainable. These principles guide both the existing codebase structure and how new API implementations should be added:
 
-1. **Core SDK Functions (`secure_fields.go`)**
-   - Contains all core business logic and data structures
+1. **Core SDK Functions**
+   - Contains all core business logic and data structures in dedicated files (e.g., `payment_inquiry.go`)
    - Functions are pure and return testable values
    - Handles encryption, decryption, and data transformation
    - Exposes clean interfaces that hide implementation complexity
 
-2. **Test Coverage (`secure_fields_test.go`)**
-   - Comprehensive tests for all core functions
+2. **Comprehensive Testing**
+   - Each API has its own test file (e.g., `payment_inquiry_test.go`)
    - Uses mock implementations where needed (e.g., `mockFormValuer`)
-   - Includes test data files for consistent verification
    - Tests both success and error scenarios
+   - Includes test data files for consistent verification
+   - Uses sample request/response values from 2C2P documentation
+   - Includes JWT token validation tests
 
-3. **CLI Implementation (`cli/secure_fields/main.go`)**
+3. **CLI Implementation**
+   - Each API has a focused CLI tool in `cli/api-name/main.go`
    - Remains implementation-agnostic by importing the SDK
-   - Focuses on HTTP handlers and CLI-specific concerns
+   - Includes proper validation and help text
+   - Formats output to be human-readable
    - Delegates all business logic to the SDK
-   - Acts as a reference implementation
+
+4. **Documentation and Structure**
+   - Add package documentation with links to relevant 2C2P API docs
+   - Document struct fields with type and required/optional status
+   - Add usage examples in package documentation
+   - Define request/response structs with proper JSON tags and field comments
+
+5. **Request Preparation and Testing**
+   - Only applies to methods that make HTTP requests in their function body
+   - Each such method has a corresponding `new*Request` helper function
+   - Helper functions handle all request preparation (URL, headers, body)
+   - This separation allows for comprehensive testing of request construction
+   - Tests verify HTTP method, headers, and request body consistency
+   - Example:
+   ```go
+   // PaymentInquiry makes an HTTP request to check payment status
+   func (c *Client) PaymentInquiry(ctx context.Context, req *PaymentInquiryRequest) (*PaymentInquiryResponse, error) {
+       // Create and make request
+       httpReq, err := c.newPaymentInquiryRequest(ctx, req)
+       if err != nil {
+           return nil, err
+       }
+       resp, debug, err := c.doRequestWithDebug(httpReq)
+       // ... handle response and errors
+   }
+
+   // Test that request is constructed correctly
+   func TestNewPaymentInquiryRequest(t *testing.T) {
+       // Test that given the same input:
+       // - HTTP method is always POST
+       // - Content-Type is application/json
+       // - Request body matches expected JSON
+   }
+   ```
+
+   Note: This pattern is NOT used for methods that:
+   - Don't make HTTP requests
+   - Only prepare data for other systems (e.g., SecureFields form data)
+   - Handle responses from other systems
 
 This organization ensures:
 - The SDK is easy to test in isolation
@@ -91,13 +135,14 @@ This organization ensures:
 - New features can be added without modifying client code
 - The codebase remains maintainable and extensible
 
-When adding new APIs, follow these principles:
-1. Add core functionality to the SDK layer
-2. Write comprehensive tests
-3. Update CLI only for new endpoint handling
-4. Keep implementation details in the SDK
+For example, see the Payment Inquiry API implementation:
+- API implementation in `payment_inquiry.go`
+- Tests in `payment_inquiry_test.go`
+- CLI tool in `cli/payment-inquiry/main.go`
 
-## Code Organization Practices
+## Code Style and Practices
+
+### Code Organization
 
 1. **Unexport Unused Types and Functions**:
    - Types, functions, and methods that are not used in `cli/*.go` should be unexported
@@ -131,7 +176,7 @@ When adding new APIs, follow these principles:
    }
    ```
 
-## Field Naming Conventions
+### Field Naming Conventions
 
 When defining request/response types in Go, follow these conventions:
 
@@ -183,37 +228,3 @@ make docs-view
 ```
 
 Then visit http://localhost:6060/pkg/github.com/choonkeat/2c2p
-
-## Contributing New API Implementations
-
-When implementing a new 2C2P API endpoint:
-
-1. **File Organization**
-   - Create API implementation file (e.g., `payment_inquiry.go`)
-   - Create test file (e.g., `payment_inquiry_test.go`)
-   - Create CLI tool in `cli/api-name/main.go`
-
-2. **Code Structure**
-   - Add package documentation with links to relevant 2C2P API docs
-   - Define request/response structs with proper JSON tags and field comments
-   - Implement the API method on the `Client` struct
-
-3. **Documentation**
-   - Include API documentation links in file header
-   - Document struct fields with type and required/optional status
-   - Add usage examples in package documentation
-
-4. **Testing**
-   - Use sample request/response values from 2C2P documentation
-   - Test both success and error cases
-   - Include JWT token validation tests
-
-5. **CLI Tool**
-   - Create focused CLI tool with flags specific to your API
-   - Include proper validation and help text
-   - Format output to be human-readable
-
-For example, see the Payment Inquiry API implementation:
-- API implementation in `payment_inquiry.go`
-- Tests in `payment_inquiry_test.go`
-- CLI tool in `cli/payment-inquiry/main.go`

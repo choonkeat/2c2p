@@ -12,8 +12,8 @@ Package api2c2p implements a Go client for the 2C2P Payment Gateway API v4.3.1.
 Example Usage:
 
 	client := api2c2p.NewClient(
-	    "your_merchant_id",
 	    "your_secret_key",
+	    "your_merchant_id",
 	    "https://sandbox-pgw.2c2p.com", // or https://pgw.2c2p.com for production
 	)
 
@@ -100,10 +100,11 @@ type PaymentInquiryResponse struct {
 	IdempotencyID                 string  `json:"idempotencyID"`                 // C 100, O
 }
 
-// PaymentInquiry makes a payment inquiry request to 2C2P
-func (c *Client) PaymentInquiry(ctx context.Context, request *PaymentInquiryRequest) (*PaymentInquiryResponse, error) {
+func (c *Client) newPaymentInquiryRequest(ctx context.Context, req *PaymentInquiryRequest) (*http.Request, error) {
+	url := c.endpoint("paymentInquiry")
+
 	// Convert request to JSON
-	jsonData, err := json.Marshal(request)
+	jsonData, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
@@ -124,12 +125,25 @@ func (c *Client) PaymentInquiry(ctx context.Context, request *PaymentInquiryRequ
 	}
 
 	// Create HTTP request
-	url := c.endpoint("paymentInquiry")
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w\nURL: %s", err, url)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	return httpReq, nil
+}
+
+// PaymentInquiry checks the status of a payment by invoice number
+func (c *Client) PaymentInquiry(ctx context.Context, req *PaymentInquiryRequest) (*PaymentInquiryResponse, error) {
+	if req.MerchantID == "" {
+		req.MerchantID = c.MerchantID
+	}
+
+	// Create and make request
+	httpReq, err := c.newPaymentInquiryRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
 	// Make request with debug info
 	resp, debug, err := c.doRequestWithDebug(httpReq)
@@ -162,5 +176,11 @@ func (c *Client) PaymentInquiry(ctx context.Context, request *PaymentInquiryRequ
 	if err := c.decodeJWTToken(jwtResponse.Payload, &inquiryResp); err != nil {
 		return nil, c.formatErrorWithDebug(fmt.Errorf("decode jwt token: %w", err), debug)
 	}
-	return &inquiryResp, nil
+
+	// Check response code
+	switch inquiryResp.RespCode {
+	case "0000", "0001", "1005", "2001":
+		return &inquiryResp, nil
+	}
+	return &inquiryResp, c.formatErrorWithDebug(fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc), debug)
 }

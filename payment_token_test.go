@@ -1,9 +1,12 @@
 package api2c2p
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/choonkeat/2c2p/testutil"
 )
 
 func TestPaymentTokenRequest_SignatureString(t *testing.T) {
@@ -237,4 +240,46 @@ func TestPaymentTokenRequest_ToMap(t *testing.T) {
 	if m["currencyCode"] != req.CurrencyCodeISO4217 {
 		t.Errorf("currencyCode = %v, want %v", m["currencyCode"], req.CurrencyCodeISO4217)
 	}
+}
+
+func TestNewPaymentTokenRequest(t *testing.T) {
+	client := NewClient("JT01", "your_secret_key", "https://example.com")
+	req := &PaymentTokenRequest{
+		MerchantID:          "JT01",
+		InvoiceNo:           "INV123",
+		Description:         "Test payment",
+		Amount:              100.50,
+		CurrencyCodeISO4217: "SGD",
+		PaymentChannel:      []PaymentTokenPaymentChannel{"CC"},
+	}
+
+	// Create request
+	httpReq, err := client.newPaymentTokenRequest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	// Verify request using testutil
+	testutil.AssertRequest(t, httpReq, struct {
+		Method      string
+		URL         string
+		ContentType string
+		Headers     map[string]string
+		Body        any
+	}{
+		Method:      "POST",
+		URL:         "https://example.com/payment/4.3/paymentToken",
+		ContentType: "application/json",
+		Body: map[string]any{
+			"merchantID":     "JT01",
+			"invoiceNo":      "INV123",
+			"description":    "Test payment",
+			"amount":         "00000100.50000", // D(12,5) format
+			"currencyCode":   "SGD",
+			"locale":         "en",
+			"request3DS":     "Y",
+			"paymentChannel": []string{"CC"},
+			"subMerchants":   nil,
+		},
+	})
 }

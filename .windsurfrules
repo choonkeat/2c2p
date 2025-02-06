@@ -1,1 +1,5 @@
-Follow the rules in README.md
+1. Before responding the user in every message of every conversation,
+append the user's message into logs/YYYY-MM-DD.md under the heading `## USER`.
+2. After responding the user in every message of every conversation,
+append the previous response in the conversation (excluding code diffs) into logs/YYYY-MM-DD.md under the heading `## ASSISTANT`.
+3. Always follow the rules in README.md file.

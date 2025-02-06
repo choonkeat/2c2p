@@ -429,64 +429,11 @@ func (r *PaymentTokenRequest) toMap() map[string]string {
 	return m
 }
 
-// paymentTokenUiParams represents UI parameters for payment token requests
-type paymentTokenUiParams struct {
-	// UserInfo contains customer information for pre-filling payment forms
-	UserInfo *paymentTokenUserInfo `json:"userInfo,omitempty"`
-}
-
-// paymentTokenUserInfo represents user information for payment token requests
-type paymentTokenUserInfo struct {
-	// Name is the customer's full name
-	Name string `json:"name"`
-
-	// Email is the customer's email address
-	Email string `json:"email"`
-
-	// Address is the customer's address
-	Address string `json:"address"`
-
-	// MobileNo is the customer's mobile number
-	MobileNo string `json:"mobileNo"`
-
-	// CountryCodeISO3166 is the customer's country code (ISO 3166)
-	CountryCodeISO3166 string `json:"countryCode"`
-
-	// MobileNoPrefix is the customer's mobile number prefix
-	MobileNoPrefix string `json:"mobileNoPrefix"`
-
-	// CurrencyCodeISO4217 is the customer's preferred currency code (ISO 4217)
-	CurrencyCodeISO4217 string `json:"currencyCode"`
-}
-
-// PaymentTokenResponse represents the response from the Payment Token API
-type PaymentTokenResponse struct {
-	// RespCode is the response code
-	// "0000" indicates success
-	RespCode string `json:"respCode"`
-
-	// RespDesc is the response description
-	RespDesc string `json:"respDesc"`
-
-	// PaymentToken is the generated payment token
-	// Used for initiating the payment
-	PaymentToken string `json:"paymentToken"`
-
-	// WebPaymentURL is the URL to redirect customers for payment
-	WebPaymentURL string `json:"webPaymentUrl"`
-}
-
-// PaymentToken creates a payment token for processing a payment
-func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*PaymentTokenResponse, error) {
-	if req.MerchantID == "" {
-		req.MerchantID = c.MerchantID
-	}
-
-	// Make HTTP request
+func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRequest) (*http.Request, error) {
 	url := c.endpoint("paymentToken")
 
 	// Format amount as D(12,5) - 12 digits before decimal, 5 after
-	amountStr := fmt.Sprintf("%012.5f", float64(req.Amount)/100.0)
+	amountStr := fmt.Sprintf("%014.5f", req.Amount)
 
 	// Prepare payload
 	payload := map[string]interface{}{
@@ -528,6 +475,20 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 		return nil, fmt.Errorf("create request: %w\nURL: %s", err, url)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	return httpReq, nil
+}
+
+// PaymentToken creates a payment token for processing a payment
+func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*PaymentTokenResponse, error) {
+	if req.MerchantID == "" {
+		req.MerchantID = c.MerchantID
+	}
+
+	// Create and make request
+	httpReq, err := c.newPaymentTokenRequest(ctx, req)
+	if err != nil {
+		return nil, err
+	}
 
 	// Make request with debug info
 	resp, debug, err := c.doRequestWithDebug(httpReq)
@@ -585,4 +546,51 @@ type PaymentTokenSubMerchant struct {
 	// Description is the payment description for this sub-merchant (required)
 	// Max length: 250 characters
 	Description string `json:"description"`
+}
+
+// paymentTokenUiParams represents UI parameters for payment token requests
+type paymentTokenUiParams struct {
+	// UserInfo contains customer information for pre-filling payment forms
+	UserInfo *paymentTokenUserInfo `json:"userInfo,omitempty"`
+}
+
+// paymentTokenUserInfo represents user information for payment token requests
+type paymentTokenUserInfo struct {
+	// Name is the customer's full name
+	Name string `json:"name"`
+
+	// Email is the customer's email address
+	Email string `json:"email"`
+
+	// Address is the customer's address
+	Address string `json:"address"`
+
+	// MobileNo is the customer's mobile number
+	MobileNo string `json:"mobileNo"`
+
+	// CountryCodeISO3166 is the customer's country code (ISO 3166)
+	CountryCodeISO3166 string `json:"countryCode"`
+
+	// MobileNoPrefix is the customer's mobile number prefix
+	MobileNoPrefix string `json:"mobileNoPrefix"`
+
+	// CurrencyCodeISO4217 is the customer's preferred currency code (ISO 4217)
+	CurrencyCodeISO4217 string `json:"currencyCode"`
+}
+
+// PaymentTokenResponse represents the response from the Payment Token API
+type PaymentTokenResponse struct {
+	// RespCode is the response code
+	// "0000" indicates success
+	RespCode string `json:"respCode"`
+
+	// RespDesc is the response description
+	RespDesc string `json:"respDesc"`
+
+	// PaymentToken is the generated payment token
+	// Used for initiating the payment
+	PaymentToken string `json:"paymentToken"`
+
+	// WebPaymentURL is the URL to redirect customers for payment
+	WebPaymentURL string `json:"webPaymentUrl"`
 }

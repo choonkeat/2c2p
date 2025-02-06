@@ -20,8 +20,8 @@ type Client struct {
 	// MerchantID is the merchant's unique identifier
 	MerchantID string
 
-	// HTTPClient is the HTTP client to use for API requests
-	HTTPClient *http.Client
+	// httpClient is the HTTP client used for making requests
+	httpClient *http.Client
 
 	// BaseURL is the base URL for API requests
 	BaseURL string
@@ -36,7 +36,7 @@ func NewClient(secretKey, merchantID string, baseURL ...string) *Client {
 	return &Client{
 		SecretKey:  secretKey,
 		MerchantID: merchantID,
-		HTTPClient: &http.Client{},
+		httpClient: &http.Client{},
 		BaseURL:    url,
 	}
 }
@@ -142,7 +142,7 @@ func (c *Client) doRequestWithDebug(req *http.Request) (*http.Response, *debugIn
 
 	// Make request
 	start := time.Now()
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, debug, err
 	}
@@ -175,7 +175,7 @@ func (c *Client) formatErrorWithDebug(err error, debug *debugInfo) error {
 		RespCode string `json:"respCode"`
 		RespDesc string `json:"respDesc"`
 	}
-	if err := json.Unmarshal([]byte(debug.Response.Body), &response); err == nil {
+	if unmarshalError := json.Unmarshal([]byte(debug.Response.Body), &response); unmarshalError == nil {
 		respCode := PaymentResponseCode(response.RespCode)
 		return fmt.Errorf("%w\nRequest URL: %s\nRequest Headers: %v\nRequest Body: %s\nResponse Status: %s\nResponse Headers: %v\nResponse Body: %s\nResponse Time: %v\nResponse Code: %s (%s)",
 			err,

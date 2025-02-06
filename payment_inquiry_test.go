@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/choonkeat/2c2p/testutil"
 )
 
 func TestPaymentInquiry(t *testing.T) {
@@ -138,4 +140,37 @@ func TestPaymentInquiry(t *testing.T) {
 	if response.RespDesc != exampleResponse.RespDesc {
 		t.Errorf("Expected RespDesc %s, got %s", exampleResponse.RespDesc, response.RespDesc)
 	}
+}
+
+func TestNewPaymentInquiryRequest(t *testing.T) {
+	client := NewClient("JT01", "your_secret_key", "https://example.com")
+	req := &PaymentInquiryRequest{
+		MerchantID: "JT01",
+		InvoiceNo:  "254b77aabc",
+		Locale:     "en",
+	}
+
+	// Create request
+	httpReq, err := client.newPaymentInquiryRequest(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	// Verify request using testutil
+	testutil.AssertRequest(t, httpReq, struct {
+		Method      string
+		URL         string
+		ContentType string
+		Headers     map[string]string
+		Body        any
+	}{
+		Method:      "POST",
+		URL:         "https://example.com/payment/4.3/paymentInquiry",
+		ContentType: "application/json",
+		Body: map[string]any{
+			"merchantID": "JT01",
+			"invoiceNo":  "254b77aabc",
+			"locale":     "en",
+		},
+	})
 }
