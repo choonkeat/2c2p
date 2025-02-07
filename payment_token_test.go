@@ -243,12 +243,13 @@ func TestPaymentTokenRequest_ToMap(t *testing.T) {
 }
 
 func TestNewPaymentTokenRequest(t *testing.T) {
-	client := NewClient("JT01", "your_secret_key", "https://example.com")
+	client := NewClient("your_secret_key", "JT01", "https://example.com")
 	req := &PaymentTokenRequest{
 		MerchantID:          "JT01",
 		InvoiceNo:           "INV123",
 		Description:         "Test payment",
 		Amount:              100.50,
+		Request3DS:          "Y",
 		CurrencyCodeISO4217: "SGD",
 		PaymentChannel:      []PaymentTokenPaymentChannel{"CC"},
 	}
@@ -274,12 +275,10 @@ func TestNewPaymentTokenRequest(t *testing.T) {
 			"merchantID":     "JT01",
 			"invoiceNo":      "INV123",
 			"description":    "Test payment",
-			"amount":         "00000100.50000", // D(12,5) format
+			"amount":         100.5,
 			"currencyCode":   "SGD",
-			"locale":         "en",
 			"request3DS":     "Y",
 			"paymentChannel": []string{"CC"},
-			"subMerchants":   nil,
 		},
 	})
 }

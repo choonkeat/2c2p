@@ -100,7 +100,7 @@ const qrPaymentHTML = `
     <script>
         document.getElementById('paymentForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            
+
             const formData = {
                 amount: document.getElementById('amount').value,
                 currency: document.getElementById('currency').value,
@@ -117,12 +117,12 @@ const qrPaymentHTML = `
                     body: JSON.stringify(formData)
                 });
                 const data = await response.json();
-                
+
                 if (data.data) {
                     // Show QR code
                     document.getElementById('qrContainer').style.display = 'block';
                     document.getElementById('qrImage').src = data.data;
-                    
+
                     // Start polling for payment status
                     pollPaymentStatus(data.paymentToken);
                 } else {
@@ -135,19 +135,19 @@ const qrPaymentHTML = `
 
         async function pollPaymentStatus(paymentToken) {
             const statusElement = document.getElementById('status');
-            
+
             while (true) {
                 try {
                     const response = await fetch('/payment-status?token=' + encodeURIComponent(paymentToken));
                     const data = await response.json();
-                    
+
                     statusElement.textContent = data.message;
                     statusElement.className = 'status ' + data.status;
-                    
+
                     if (data.status === 'success' || data.status === 'error') {
                         break;
                     }
-                    
+
                     await new Promise(resolve => setTimeout(resolve, 3000));
                 } catch (error) {
                     console.error('Error checking payment status:', error);
@@ -202,7 +202,11 @@ func main() {
 		}
 
 		// Query payment status
-		status, err := client.GetQRPaymentStatus(context.Background(), token)
+		status, err := client.PaymentInquiry(context.Background(), &api2c2p.PaymentInquiryRequest{
+			InvoiceNo: token,
+			Locale:    "en",
+		})
+		log.Printf("Payment status: %#v, %s", status, err)
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]string{
 				"status":  "error",
@@ -210,6 +214,7 @@ func main() {
 			})
 			return
 		}
+		log.Printf("Payment status: %#v", status)
 
 		var response struct {
 			Status  string `json:"status"`
@@ -296,6 +301,10 @@ func handleQRPayment(client *api2c2p.Client) http.HandlerFunc {
 			UserDefined3: "3",
 			UserDefined4: "4",
 			UserDefined5: "5",
+			//
+			LoyaltyPoints: &api2c2p.LoyaltyPoints{
+				RedeemAmount: amount,
+			},
 		}
 
 		// Get payment token
@@ -303,6 +312,12 @@ func handleQRPayment(client *api2c2p.Client) http.HandlerFunc {
 		if err != nil {
 			log.Printf("Error getting payment token: %v", err)
 			http.Error(w, "Error getting payment token: "+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		if tokenResult.PaymentToken == "" {
+			log.Printf("Error getting payment token: %s", tokenResult.RespDesc)
+			http.Error(w, "Error getting payment token: "+tokenResult.RespDesc, http.StatusInternalServerError)
 			return
 		}
 

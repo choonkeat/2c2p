@@ -345,10 +345,12 @@ func (c *Client) CreateQRPayment(ctx context.Context, params *CreateQRPaymentPar
 	doPaymentParams := &DoPaymentParams{
 		PaymentToken:       params.PaymentToken,
 		PaymentChannelCode: params.PaymentChannelCode,
-		PaymentData:        map[string]any{"qrType": "URL"},
-		Locale:             "en",
-		ResponseReturnUrl:  params.ResponseReturnUrl,
-		ClientIP:           params.ClientIP,
+		PaymentData: map[string]any{
+			"qrType": "URL",
+		},
+		Locale:            "en",
+		ResponseReturnUrl: params.ResponseReturnUrl,
+		ClientIP:          params.ClientIP,
 	}
 
 	// Create request
@@ -378,17 +380,4 @@ func (c *Client) CreateQRPayment(ctx context.Context, params *CreateQRPaymentPar
 	}
 
 	return &doPaymentRespData, nil
-}
-
-// GetQRPaymentStatus gets the current status of a QR payment
-func (c *Client) GetQRPaymentStatus(ctx context.Context, paymentToken string) (*PaymentInquiryResponse, error) {
-	// Create payment inquiry request
-	inquiryReq := &PaymentInquiryRequest{
-		MerchantID:   c.MerchantID,
-		PaymentToken: paymentToken,
-		Locale:       "en",
-	}
-
-	// Get payment status
-	return c.PaymentInquiry(ctx, inquiryReq)
 }

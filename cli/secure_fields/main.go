@@ -97,7 +97,7 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	invoiceNo := fmt.Sprintf("INV%s", timestamp)
 	paymentDetails := struct {
-		Amount       string // 12 digits
+		AmountCents  int64
 		CurrencyCode string // ISO 4217
 		Description  string
 		CustomerName string
@@ -109,8 +109,8 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 		UserDefined4 string
 		UserDefined5 string
 	}{
-		Amount:       "000000009910", // $100.10
-		CurrencyCode: "702",          // SGD
+		AmountCents:  1234,
+		CurrencyCode: "702", // SGD
 		Description:  "1 room for 2 nights",
 		CustomerName: "John Doe",
 		CountryCode:  "SG",
@@ -194,9 +194,8 @@ func handlePaymentNotification(w http.ResponseWriter, r *http.Request, client *a
 	log.Printf("Payment notification received: RespCode=%s XML=%s", response.RespCode, string(decrypted))
 
 	inquiryResponse, err := client.PaymentInquiry(r.Context(), &api2c2p.PaymentInquiryRequest{
-		MerchantID: client.MerchantID,
-		InvoiceNo:  response.TranRef,
-		Locale:     "en",
+		InvoiceNo: response.TranRef,
+		Locale:    "en",
 	})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Error inquiring payment: %v", err), http.StatusInternalServerError)

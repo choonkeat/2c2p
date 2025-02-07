@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -46,6 +47,10 @@ const (
 	InterestTypeMerchant PaymentTokenInterestType = "M"
 )
 
+type LoyaltyPoints struct {
+	RedeemAmount float64 `json:"redeemAmount"`
+}
+
 // PaymentTokenRequest represents a request to the Payment Token API
 type PaymentTokenRequest struct {
 	// MerchantID is the 2C2P merchant ID (required)
@@ -67,6 +72,9 @@ type PaymentTokenRequest struct {
 	// Amount is the payment amount (required)
 	// Format: 12 digits with 5 decimal places (e.g., 000000002500.90000)
 	Amount float64 `json:"amount"`
+
+	// LoyaltyPoints is the loyalty points (optional)
+	LoyaltyPoints *LoyaltyPoints `json:"loyaltyPoints,omitempty"`
 
 	// CurrencyCodeISO4217 is the payment currency code (ISO 4217) (required)
 	// Length: 3 characters
@@ -431,25 +439,12 @@ func (r *PaymentTokenRequest) toMap() map[string]string {
 
 func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRequest) (*http.Request, error) {
 	url := c.endpoint("paymentToken")
-
-	// Format amount as D(12,5) - 12 digits before decimal, 5 after
-	amountStr := fmt.Sprintf("%014.5f", req.Amount)
-
-	// Prepare payload
-	payload := map[string]interface{}{
-		"merchantID":     req.MerchantID,
-		"invoiceNo":      req.InvoiceNo,
-		"description":    req.Description,
-		"amount":         amountStr,
-		"currencyCode":   req.CurrencyCodeISO4217,
-		"locale":         "en",
-		"request3DS":     "Y",
-		"paymentChannel": req.PaymentChannel,
-		"subMerchants":   req.SubMerchants,
+	if req.MerchantID == "" {
+		req.MerchantID = c.MerchantID
 	}
 
 	// Convert request to JSON
-	jsonData, err := json.Marshal(payload)
+	jsonData, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
@@ -468,6 +463,7 @@ func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRe
 	if err != nil {
 		return nil, fmt.Errorf("marshal request body: %w", err)
 	}
+	log.Printf("Payment token request body: %s", string(jsonBody))
 
 	// Create HTTP request
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
@@ -496,6 +492,7 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 		return nil, c.formatErrorWithDebug(fmt.Errorf("do request: %w", err), debug)
 	}
 	defer resp.Body.Close()
+	log.Printf("Payment token response body: %s", debug.Response.Body)
 
 	// Try to decode response
 	var jwtResponse struct {

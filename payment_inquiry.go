@@ -38,6 +38,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -102,6 +103,9 @@ type PaymentInquiryResponse struct {
 
 func (c *Client) newPaymentInquiryRequest(ctx context.Context, req *PaymentInquiryRequest) (*http.Request, error) {
 	url := c.endpoint("paymentInquiry")
+	if req.MerchantID == "" {
+		req.MerchantID = c.MerchantID
+	}
 
 	// Convert request to JSON
 	jsonData, err := json.Marshal(req)
@@ -135,10 +139,6 @@ func (c *Client) newPaymentInquiryRequest(ctx context.Context, req *PaymentInqui
 
 // PaymentInquiry checks the status of a payment by invoice number
 func (c *Client) PaymentInquiry(ctx context.Context, req *PaymentInquiryRequest) (*PaymentInquiryResponse, error) {
-	if req.MerchantID == "" {
-		req.MerchantID = c.MerchantID
-	}
-
 	// Create and make request
 	httpReq, err := c.newPaymentInquiryRequest(ctx, req)
 	if err != nil {
@@ -151,6 +151,7 @@ func (c *Client) PaymentInquiry(ctx context.Context, req *PaymentInquiryRequest)
 		return nil, c.formatErrorWithDebug(fmt.Errorf("do request: %w", err), debug)
 	}
 	defer resp.Body.Close()
+	log.Printf("Payment inquiry response body: %s", debug.Response.Body)
 
 	// Try to decode response
 	var jwtResponse struct {

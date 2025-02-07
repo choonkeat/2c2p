@@ -1,7 +1,6 @@
 .PHONY: test docs-view
 
-test:
-	gofmt -w .
+test: gofmt
 	for cli in cli/*; do \
 		(go run $$cli/*.go -h) || exit 1; \
 	done
@@ -16,3 +15,6 @@ docs-view:
 	@echo "Starting godoc server on http://localhost:6060"
 	@echo "Visit: http://localhost:6060/pkg/github.com/choonkeat/2c2p"
 	@godoc -http=:6060
+
+gofmt:
+	gofmt -w .

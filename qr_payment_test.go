@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewPaymentOptionsRequest(t *testing.T) {
-	client := NewClient("JT01", "your_secret_key", "https://example.com")
+	client := NewClient("your_secret_key", "JT01", "https://example.com")
 	paymentToken := "test_payment_token"
 
 	// Create request
@@ -35,7 +35,7 @@ func TestNewPaymentOptionsRequest(t *testing.T) {
 }
 
 func TestNewPaymentOptionDetailsRequest(t *testing.T) {
-	client := NewClient("JT01", "your_secret_key", "https://example.com")
+	client := NewClient("your_secret_key", "JT01", "https://example.com")
 	paymentToken := "test_payment_token"
 
 	// Create request
@@ -64,7 +64,7 @@ func TestNewPaymentOptionDetailsRequest(t *testing.T) {
 }
 
 func TestNewDoPaymentRequest(t *testing.T) {
-	client := NewClient("JT01", "your_secret_key", "https://example.com")
+	client := NewClient("your_secret_key", "JT01", "https://example.com")
 
 	params := &DoPaymentParams{
 		PaymentToken:       "test_payment_token",

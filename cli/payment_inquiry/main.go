@@ -24,12 +24,9 @@ func main() {
 	}
 
 	client := api2c2p.NewClient(*secretKey, *merchantID)
-	req := &api2c2p.PaymentInquiryRequest{
-		MerchantID: *merchantID,
-		InvoiceNo:  *invoiceNo,
-	}
-
-	resp, err := client.PaymentInquiry(context.Background(), req)
+	resp, err := client.PaymentInquiry(context.Background(), &api2c2p.PaymentInquiryRequest{
+		InvoiceNo: *invoiceNo,
+	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if resp != nil {

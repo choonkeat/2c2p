@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"encoding/xml"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/fullsailor/pkcs7"
@@ -137,7 +138,7 @@ func SecureFieldsFormHTML(merchantID, secretKey, formAction string, sandbox bool
 }
 
 func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, details struct {
-	Amount       string
+	AmountCents  int64
 	CurrencyCode string
 	Description  string
 	CustomerName string
@@ -150,13 +151,13 @@ func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, 
 	UserDefined5 string
 }, encryptedCardInfo string) string {
 	// Construct signature string with all fields in the same order as PHP
-	return fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+	return fmt.Sprintf("%s%s%s%s%s%012d%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
 		apiVersion,           // version
 		timestamp,            // timestamp
 		merchantID,           // merchantID
 		invoiceNo,            // uniqueTransactionCode
 		details.Description,  // desc
-		details.Amount,       // amt
+		details.AmountCents,  // amt
 		details.CurrencyCode, // currencyCode
 		"",                   // paymentChannel
 		"",                   // storeCardUniqueID
@@ -207,7 +208,7 @@ type SecureFieldsPaymentPayload struct {
 }
 
 func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, invoiceNo string, paymentDetails struct {
-	Amount       string
+	AmountCents  int64
 	CurrencyCode string
 	Description  string
 	CustomerName string
@@ -241,7 +242,7 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		<merchantID>%s</merchantID>
 		<uniqueTransactionCode>%s</uniqueTransactionCode>
 		<desc>%s</desc>
-		<amt>%s</amt>
+		<amt>%012d</amt>
 		<currencyCode>%s</currencyCode>
 		<paymentChannel></paymentChannel>
 		<panCountry>%s</panCountry>
@@ -260,7 +261,7 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		merchantID,
 		invoiceNo,
 		paymentDetails.Description,
-		paymentDetails.Amount,
+		paymentDetails.AmountCents,
 		paymentDetails.CurrencyCode,
 		paymentDetails.CountryCode,
 		paymentDetails.CustomerName,
@@ -273,6 +274,7 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		paymentDetails.UserDefined4,
 		paymentDetails.UserDefined5,
 	)
+	log.Printf("Payment request XML (before base64): %s", xmlStr)
 
 	// Base64 encode the XML
 	return SecureFieldsPaymentPayload{

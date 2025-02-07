@@ -171,7 +171,7 @@ func TestCreatePaymentPayload(t *testing.T) {
 	timestamp := "1707210770"
 	invoiceNo := "INV1707210770"
 	paymentDetails := struct {
-		Amount       string
+		AmountCents  int64
 		CurrencyCode string
 		Description  string
 		CustomerName string
@@ -183,7 +183,7 @@ func TestCreatePaymentPayload(t *testing.T) {
 		UserDefined4 string
 		UserDefined5 string
 	}{
-		Amount:       "000000009910",
+		AmountCents:  1234,
 		CurrencyCode: "702",
 		Description:  "1 room for 2 nights",
 		CustomerName: "John Doe",
@@ -219,7 +219,7 @@ func TestCreatePaymentPayload(t *testing.T) {
 		"<merchantID>" + merchantID + "</merchantID>",
 		"<uniqueTransactionCode>" + invoiceNo + "</uniqueTransactionCode>",
 		"<desc>" + paymentDetails.Description + "</desc>",
-		"<amt>" + paymentDetails.Amount + "</amt>",
+		"<amt>" + fmt.Sprintf("%012d", paymentDetails.AmountCents) + "</amt>",
 		"<currencyCode>" + paymentDetails.CurrencyCode + "</currencyCode>",
 		"<paymentChannel></paymentChannel>",
 		"<panCountry>" + paymentDetails.CountryCode + "</panCountry>",
@@ -253,46 +253,46 @@ func TestCreatePaymentPayload(t *testing.T) {
 
 	// Calculate expected HMAC
 	strToHash := fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-		"9.4",                                   // version
-		timestamp,                               // timestamp
-		merchantID,                              // merchantID
-		invoiceNo,                               // uniqueTransactionCode
-		paymentDetails.Description,              // desc
-		paymentDetails.Amount,                   // amt
-		paymentDetails.CurrencyCode,             // currencyCode
-		"",                                      // paymentChannel
-		"",                                      // storeCardUniqueID
-		"",                                      // panBank
-		paymentDetails.CountryCode,              // country
-		paymentDetails.CustomerName,             // cardholderName
-		"",                                      // cardholderEmail
-		"",                                      // payCategoryID
-		paymentDetails.UserDefined1,             // userDefined1
-		paymentDetails.UserDefined2,             // userDefined2
-		paymentDetails.UserDefined3,             // userDefined3
-		paymentDetails.UserDefined4,             // userDefined4
-		paymentDetails.UserDefined5,             // userDefined5
-		paymentDetails.StoreCard,                // storeCard
-		"",                                      // ippTransaction
-		"",                                      // installmentPeriod
-		"",                                      // interestType
-		"",                                      // recurring
-		"",                                      // invoicePrefix
-		"",                                      // recurringAmount
-		"",                                      // allowAccumulate
-		"",                                      // maxAccumulateAmt
-		"",                                      // recurringInterval
-		"",                                      // recurringCount
-		"",                                      // chargeNextDate
-		"",                                      // promotion
-		"Y",                                     // request3DS
-		"",                                      // statementDescriptor
-		"",                                      // agentCode
-		"",                                      // channelCode
-		"",                                      // paymentExpiry
-		"",                                      // mobileNo
-		"",                                      // tokenizeWithoutAuthorization
-		form.PostFormValue("encryptedCardInfo"), // encryptedCardInfo
+		"9.4",                      // version
+		timestamp,                  // timestamp
+		merchantID,                 // merchantID
+		invoiceNo,                  // uniqueTransactionCode
+		paymentDetails.Description, // desc
+		fmt.Sprintf("%012d", paymentDetails.AmountCents), // amt
+		paymentDetails.CurrencyCode,                      // currencyCode
+		"",                                               // paymentChannel
+		"",                                               // storeCardUniqueID
+		"",                                               // panBank
+		paymentDetails.CountryCode,                       // country
+		paymentDetails.CustomerName,                      // cardholderName
+		"",                                               // cardholderEmail
+		"",                                               // payCategoryID
+		paymentDetails.UserDefined1,                      // userDefined1
+		paymentDetails.UserDefined2,                      // userDefined2
+		paymentDetails.UserDefined3,                      // userDefined3
+		paymentDetails.UserDefined4,                      // userDefined4
+		paymentDetails.UserDefined5,                      // userDefined5
+		paymentDetails.StoreCard,                         // storeCard
+		"",                                               // ippTransaction
+		"",                                               // installmentPeriod
+		"",                                               // interestType
+		"",                                               // recurring
+		"",                                               // invoicePrefix
+		"",                                               // recurringAmount
+		"",                                               // allowAccumulate
+		"",                                               // maxAccumulateAmt
+		"",                                               // recurringInterval
+		"",                                               // recurringCount
+		"",                                               // chargeNextDate
+		"",                                               // promotion
+		"Y",                                              // request3DS
+		"",                                               // statementDescriptor
+		"",                                               // agentCode
+		"",                                               // channelCode
+		"",                                               // paymentExpiry
+		"",                                               // mobileNo
+		"",                                               // tokenizeWithoutAuthorization
+		form.PostFormValue("encryptedCardInfo"),          // encryptedCardInfo
 	)
 	h := hmac.New(sha1.New, []byte(secretKey))
 	h.Write([]byte(strToHash))
