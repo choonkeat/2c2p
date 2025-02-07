@@ -1,7 +1,6 @@
 package api2c2p
 
 import (
-	"context"
 	"testing"
 
 	"github.com/choonkeat/2c2p/testutil"
@@ -12,7 +11,7 @@ func TestNewPaymentOptionsRequest(t *testing.T) {
 	paymentToken := "test_payment_token"
 
 	// Create request
-	httpReq, err := client.newPaymentOptionsRequest(context.Background(), paymentToken)
+	httpReq, err := client.newPaymentOptionsRequest(ctx, paymentToken)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -39,7 +38,7 @@ func TestNewPaymentOptionDetailsRequest(t *testing.T) {
 	paymentToken := "test_payment_token"
 
 	// Create request
-	httpReq, err := client.newPaymentOptionDetailsRequest(context.Background(), paymentToken)
+	httpReq, err := client.newPaymentOptionDetailsRequest(ctx, paymentToken)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -77,7 +76,7 @@ func TestNewDoPaymentRequest(t *testing.T) {
 	}
 
 	// Create request
-	httpReq, err := client.newDoPaymentRequest(context.Background(), params)
+	httpReq, err := client.newDoPaymentRequest(ctx, params)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -120,7 +119,7 @@ func TestNewDoPaymentRequest(t *testing.T) {
 	}
 
 	// Create request with minimal params
-	minimalReq, err := client.newDoPaymentRequest(context.Background(), minimalParams)
+	minimalReq, err := client.newDoPaymentRequest(ctx, minimalParams)
 	if err != nil {
 		t.Fatalf("Failed to create request with minimal params: %v", err)
 	}

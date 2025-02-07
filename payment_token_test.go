@@ -1,7 +1,6 @@
 package api2c2p
 
 import (
-	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
@@ -169,7 +168,7 @@ func TestNewPaymentTokenRequest(t *testing.T) {
 	}
 
 	// Create request
-	httpReq, err := client.newPaymentTokenRequest(context.Background(), req)
+	httpReq, err := client.newPaymentTokenRequest(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}

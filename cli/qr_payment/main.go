@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -202,7 +201,7 @@ func main() {
 		}
 
 		// Query payment status
-		status, err := client.PaymentInquiry(context.Background(), &api2c2p.PaymentInquiryRequest{
+		status, err := client.PaymentInquiry(r.Context(), &api2c2p.PaymentInquiryRequest{
 			InvoiceNo: token,
 			Locale:    "en",
 		})

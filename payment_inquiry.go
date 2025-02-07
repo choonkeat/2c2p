@@ -24,7 +24,7 @@ Example Usage:
 	    Locale:       "en",                   // Optional
 	}
 
-	response, err := client.PaymentInquiry(context.Background(), request)
+	response, err := client.PaymentInquiry(ctx, request)
 	if err != nil {
 	    log.Fatalf("Error: %v", err)
 	}

@@ -1,7 +1,6 @@
 package api2c2p
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -118,7 +117,7 @@ func TestPaymentInquiry(t *testing.T) {
 	client := NewClient("your_secret_key", "JT01", ts.URL)
 
 	// Make request
-	response, err := client.PaymentInquiry(context.Background(), request)
+	response, err := client.PaymentInquiry(ctx, request)
 	if err != nil {
 		t.Fatalf("Error making payment inquiry: %v", err)
 	}
@@ -149,7 +148,7 @@ func TestNewPaymentInquiryRequest(t *testing.T) {
 	}
 
 	// Create request
-	httpReq, err := client.newPaymentInquiryRequest(context.Background(), req)
+	httpReq, err := client.newPaymentInquiryRequest(ctx, req)
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
