@@ -27,17 +27,27 @@ type Client struct {
 	BaseURL string
 }
 
+// Config holds the configuration for creating a new 2C2P client
+type Config struct {
+	SecretKey  string
+	MerchantID string
+	HttpClient *http.Client
+	BaseURL    string
+}
+
 // NewClient creates a new 2C2P API client
-func NewClient(secretKey, merchantID string, baseURL ...string) *Client {
-	url := "https://sandbox-pgw.2c2p.com"
-	if len(baseURL) > 0 {
-		url = baseURL[0]
+func NewClient(cfg Config) *Client {
+	if cfg.BaseURL == "" {
+		cfg.BaseURL = "https://sandbox-pgw.2c2p.com"
+	}
+	if cfg.HttpClient == nil {
+		cfg.HttpClient = &http.Client{}
 	}
 	return &Client{
-		SecretKey:  secretKey,
-		MerchantID: merchantID,
-		httpClient: &http.Client{},
-		BaseURL:    url,
+		SecretKey:  cfg.SecretKey,
+		MerchantID: cfg.MerchantID,
+		httpClient: cfg.HttpClient,
+		BaseURL:    cfg.BaseURL,
 	}
 }
 

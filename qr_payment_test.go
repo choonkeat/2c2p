@@ -7,7 +7,11 @@ import (
 )
 
 func TestNewPaymentOptionsRequest(t *testing.T) {
-	client := NewClient("your_secret_key", "JT01", "https://example.com")
+	client := NewClient(Config{
+		SecretKey:  "your_secret_key",
+		MerchantID: "JT01",
+		BaseURL:    "https://example.com",
+	})
 	paymentToken := "test_payment_token"
 
 	// Create request
@@ -34,7 +38,11 @@ func TestNewPaymentOptionsRequest(t *testing.T) {
 }
 
 func TestNewPaymentOptionDetailsRequest(t *testing.T) {
-	client := NewClient("your_secret_key", "JT01", "https://example.com")
+	client := NewClient(Config{
+		SecretKey:  "your_secret_key",
+		MerchantID: "JT01",
+		BaseURL:    "https://example.com",
+	})
 	paymentToken := "test_payment_token"
 
 	// Create request
@@ -63,7 +71,11 @@ func TestNewPaymentOptionDetailsRequest(t *testing.T) {
 }
 
 func TestNewDoPaymentRequest(t *testing.T) {
-	client := NewClient("your_secret_key", "JT01", "https://example.com")
+	client := NewClient(Config{
+		SecretKey:  "your_secret_key",
+		MerchantID: "JT01",
+		BaseURL:    "https://example.com",
+	})
 
 	params := &DoPaymentParams{
 		PaymentToken:       "test_payment_token",

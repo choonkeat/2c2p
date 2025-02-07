@@ -172,7 +172,11 @@ func main() {
 	}
 
 	// Create 2C2P client
-	client := api2c2p.NewClient(*secretKey, *merchantID, *c2cpURL)
+	client := api2c2p.NewClient(api2c2p.Config{
+		SecretKey:  *secretKey,
+		MerchantID: *merchantID,
+		BaseURL:    *c2cpURL,
+	})
 
 	// Handler for the payment form page
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

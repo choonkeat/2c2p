@@ -42,7 +42,11 @@ func main() {
 	}
 
 	// Create 2C2P client
-	client := api2c2p.NewClient(*secretKey, *merchantID, *c2cpURL)
+	client := api2c2p.NewClient(api2c2p.Config{
+		SecretKey:  *secretKey,
+		MerchantID: *merchantID,
+		BaseURL:    *c2cpURL,
+	})
 
 	// Generate the payment form HTML with secure fields
 	secureFieldsHTML := api2c2p.SecureFieldsFormHTML(*merchantID, *secretKey, *formAction, *sandbox)

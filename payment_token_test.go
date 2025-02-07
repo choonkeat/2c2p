@@ -156,7 +156,11 @@ func TestPaymentTokenRequest_SignatureString_Simple(t *testing.T) {
 }
 
 func TestNewPaymentTokenRequest(t *testing.T) {
-	client := NewClient("your_secret_key", "JT01", "https://example.com")
+	client := NewClient(Config{
+		SecretKey:  "your_secret_key",
+		MerchantID: "JT01",
+		BaseURL:    "https://example.com",
+	})
 	req := &PaymentTokenRequest{
 		MerchantID:          "JT01",
 		InvoiceNo:           "INV123",

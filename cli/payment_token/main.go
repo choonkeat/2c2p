@@ -72,7 +72,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	client := api2c2p.NewClient(*secretKey, *merchantID)
+	client := api2c2p.NewClient(api2c2p.Config{
+		SecretKey:  *secretKey,
+		MerchantID: *merchantID,
+	})
 
 	// Convert payment channels
 	channels := strings.Split(*paymentChannelStr, ",")

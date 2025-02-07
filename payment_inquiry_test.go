@@ -98,7 +98,11 @@ func TestPaymentInquiry(t *testing.T) {
 		}
 
 		// Create JWT token from response data
-		mockClient := NewClient("your_secret_key", "JT01", ts.URL)
+		mockClient := NewClient(Config{
+			SecretKey:  "your_secret_key",
+			MerchantID: "JT01",
+			BaseURL:    ts.URL,
+		})
 		token, err := mockClient.generateJWTToken(responseData)
 		if err != nil {
 			t.Errorf("Error generating JWT token: %v", err)
@@ -114,7 +118,11 @@ func TestPaymentInquiry(t *testing.T) {
 	defer ts.Close()
 
 	// Create client with test server URL
-	client := NewClient("your_secret_key", "JT01", ts.URL)
+	client := NewClient(Config{
+		SecretKey:  "your_secret_key",
+		MerchantID: "JT01",
+		BaseURL:    ts.URL,
+	})
 
 	// Make request
 	response, err := client.PaymentInquiry(ctx, request)
@@ -141,7 +149,11 @@ func TestPaymentInquiry(t *testing.T) {
 }
 
 func TestNewPaymentInquiryRequest(t *testing.T) {
-	client := NewClient("your_secret_key", "JT01", "https://example.com")
+	client := NewClient(Config{
+		SecretKey:  "your_secret_key",
+		MerchantID: "JT01",
+		BaseURL:    "https://example.com",
+	})
 	req := &PaymentInquiryRequest{
 		InvoiceNo: "254b77aabc",
 		Locale:    "en",
