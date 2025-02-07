@@ -292,7 +292,7 @@ func handleQRPayment(client *api2c2p.Client) http.HandlerFunc {
 			MerchantID:          *merchantID,
 			InvoiceNo:           fmt.Sprintf("INV%d", time.Now().Unix()),
 			Description:         req.Description,
-			Amount:              amount,
+			AmountCents:         api2c2p.Cents(amount * 100),
 			CurrencyCodeISO4217: req.Currency,
 			PaymentChannel:      []api2c2p.PaymentTokenPaymentChannel{"QR"},
 			//
@@ -302,9 +302,9 @@ func handleQRPayment(client *api2c2p.Client) http.HandlerFunc {
 			UserDefined4: "4",
 			UserDefined5: "5",
 			//
-			LoyaltyPoints: &api2c2p.LoyaltyPoints{
-				RedeemAmount: amount,
-			},
+			// LoyaltyPoints: &api2c2p.LoyaltyPoints{
+			// 	RedeemAmount: amount,
+			// },
 		}
 
 		// Get payment token

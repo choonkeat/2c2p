@@ -14,7 +14,7 @@ func main() {
 	var (
 		secretKey           = flag.String("secretKey", "", "Merchant's secret key")
 		merchantID          = flag.String("merchantID", "", "Merchant ID")
-		amount              = flag.Float64("amount", 0, "Payment amount")
+		amountCents         = flag.Int64("amountCents", 0, "Payment amount in cents")
 		invoiceNo           = flag.String("invoiceNo", "", "Invoice number")
 		description         = flag.String("description", "", "Payment description")
 		currencyCodeISO4217 = flag.String("currencyCode", "", "Currency code (ISO 4217)")
@@ -67,7 +67,7 @@ func main() {
 	)
 	flag.Parse()
 
-	if *secretKey == "" || *merchantID == "" || *invoiceNo == "" || *description == "" || *amount == 0 || *currencyCodeISO4217 == "" {
+	if *secretKey == "" || *merchantID == "" || *invoiceNo == "" || *description == "" || *amountCents == 0 || *currencyCodeISO4217 == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
@@ -115,7 +115,7 @@ func main() {
 		IdempotencyID:                 *idempotencyID,
 		InvoiceNo:                     *invoiceNo,
 		Description:                   *description,
-		Amount:                        *amount,
+		AmountCents:                   api2c2p.Cents(*amountCents),
 		CurrencyCodeISO4217:           *currencyCodeISO4217,
 		PaymentChannel:                paymentChannels,
 		AgentChannel:                  agentChannels,

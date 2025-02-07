@@ -137,61 +137,49 @@ func SecureFieldsFormHTML(merchantID, secretKey, formAction string, sandbox bool
 </html>`
 }
 
-func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, details struct {
-	AmountCents  int64
-	CurrencyCode string
-	Description  string
-	CustomerName string
-	CountryCode  string
-	StoreCard    string
-	UserDefined1 string
-	UserDefined2 string
-	UserDefined3 string
-	UserDefined4 string
-	UserDefined5 string
-}, encryptedCardInfo string) string {
+func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, details SecureFieldsPaymentDetails, encryptedCardInfo string) string {
 	// Construct signature string with all fields in the same order as PHP
-	return fmt.Sprintf("%s%s%s%s%s%012d%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-		apiVersion,           // version
-		timestamp,            // timestamp
-		merchantID,           // merchantID
-		invoiceNo,            // uniqueTransactionCode
-		details.Description,  // desc
-		details.AmountCents,  // amt
-		details.CurrencyCode, // currencyCode
-		"",                   // paymentChannel
-		"",                   // storeCardUniqueID
-		"",                   // panBank
-		details.CountryCode,  // country
-		details.CustomerName, // cardholderName
-		"",                   // cardholderEmail
-		"",                   // payCategoryID
-		details.UserDefined1, // userDefined1
-		details.UserDefined2, // userDefined2
-		details.UserDefined3, // userDefined3
-		details.UserDefined4, // userDefined4
-		details.UserDefined5, // userDefined5
-		details.StoreCard,    // storeCard
-		"",                   // ippTransaction
-		"",                   // installmentPeriod
-		"",                   // interestType
-		"",                   // recurring
-		"",                   // invoicePrefix
-		"",                   // recurringAmount
-		"",                   // allowAccumulate
-		"",                   // maxAccumulateAmt
-		"",                   // recurringInterval
-		"",                   // recurringCount
-		"",                   // chargeNextDate
-		"",                   // promotion
-		"Y",                  // request3DS
-		"",                   // statementDescriptor
-		"",                   // agentCode
-		"",                   // channelCode
-		"",                   // paymentExpiry
-		"",                   // mobileNo
-		"",                   // tokenizeWithoutAuthorization
-		encryptedCardInfo,    // encryptedCardInfo
+	return fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+		apiVersion,                      // version
+		timestamp,                       // timestamp
+		merchantID,                      // merchantID
+		invoiceNo,                       // uniqueTransactionCode
+		details.Description,             // desc
+		details.AmountCents.XMLString(), // amt
+		details.CurrencyCode,            // currencyCode
+		"",                              // paymentChannel
+		"",                              // storeCardUniqueID
+		"",                              // panBank
+		details.CountryCode,             // country
+		details.CustomerName,            // cardholderName
+		"",                              // cardholderEmail
+		"",                              // payCategoryID
+		details.UserDefined1,            // userDefined1
+		details.UserDefined2,            // userDefined2
+		details.UserDefined3,            // userDefined3
+		details.UserDefined4,            // userDefined4
+		details.UserDefined5,            // userDefined5
+		details.StoreCard,               // storeCard
+		"",                              // ippTransaction
+		"",                              // installmentPeriod
+		"",                              // interestType
+		"",                              // recurring
+		"",                              // invoicePrefix
+		"",                              // recurringAmount
+		"",                              // allowAccumulate
+		"",                              // maxAccumulateAmt
+		"",                              // recurringInterval
+		"",                              // recurringCount
+		"",                              // chargeNextDate
+		"",                              // promotion
+		"Y",                             // request3DS
+		"",                              // statementDescriptor
+		"",                              // agentCode
+		"",                              // channelCode
+		"",                              // paymentExpiry
+		"",                              // mobileNo
+		"",                              // tokenizeWithoutAuthorization
+		encryptedCardInfo,               // encryptedCardInfo
 	)
 }
 
@@ -207,8 +195,8 @@ type SecureFieldsPaymentPayload struct {
 	FormFields map[string]string
 }
 
-func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, invoiceNo string, paymentDetails struct {
-	AmountCents  int64
+type SecureFieldsPaymentDetails struct {
+	AmountCents  Cents
 	CurrencyCode string
 	Description  string
 	CustomerName string
@@ -219,7 +207,9 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 	UserDefined3 string
 	UserDefined4 string
 	UserDefined5 string
-}, form FormValuer) SecureFieldsPaymentPayload {
+}
+
+func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, invoiceNo string, paymentDetails SecureFieldsPaymentDetails, form FormValuer) SecureFieldsPaymentPayload {
 	encryptedCardInfo := form.PostFormValue("encryptedCardInfo")
 
 	// Create HMAC signature string
@@ -242,7 +232,7 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		<merchantID>%s</merchantID>
 		<uniqueTransactionCode>%s</uniqueTransactionCode>
 		<desc>%s</desc>
-		<amt>%012d</amt>
+		<amt>%s</amt>
 		<currencyCode>%s</currencyCode>
 		<paymentChannel></paymentChannel>
 		<panCountry>%s</panCountry>
@@ -261,7 +251,7 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		merchantID,
 		invoiceNo,
 		paymentDetails.Description,
-		paymentDetails.AmountCents,
+		paymentDetails.AmountCents.XMLString(),
 		paymentDetails.CurrencyCode,
 		paymentDetails.CountryCode,
 		paymentDetails.CustomerName,

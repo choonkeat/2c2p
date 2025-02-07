@@ -96,19 +96,7 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 	// Prepare payment request parameters
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	invoiceNo := fmt.Sprintf("INV%s", timestamp)
-	paymentDetails := struct {
-		AmountCents  int64
-		CurrencyCode string // ISO 4217
-		Description  string
-		CustomerName string
-		CountryCode  string // ISO 3166
-		StoreCard    string // Y/N
-		UserDefined1 string
-		UserDefined2 string
-		UserDefined3 string
-		UserDefined4 string
-		UserDefined5 string
-	}{
+	paymentDetails := api2c2p.SecureFieldsPaymentDetails{
 		AmountCents:  1234,
 		CurrencyCode: "702", // SGD
 		Description:  "1 room for 2 nights",

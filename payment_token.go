@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 // PaymentTokenRequest3DSType represents the 3DS request type
@@ -51,6 +50,44 @@ type LoyaltyPoints struct {
 	RedeemAmount float64 `json:"redeemAmount"`
 }
 
+type Cents int64
+
+func (c Cents) XMLString() string {
+	return fmt.Sprintf("%012d", c)
+}
+
+// Format: 12 digits with 5 decimal places (e.g., 000000002500.90000)
+func (c Cents) MarshalJSON() ([]byte, error) {
+	return []byte(fmt.Sprintf("\"%012d.%02d000\"", c/100, c%100)), nil
+}
+
+// Decodes "000000000012.34000" into 1234
+func (c *Cents) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return err
+	}
+
+	// Split by decimal point
+	split := bytes.SplitN([]byte(s), []byte("."), 2)
+	if len(split) != 2 {
+		return fmt.Errorf("invalid format")
+	}
+	// Parse first part
+	val, err := strconv.ParseInt(string(split[0]), 10, 64)
+	if err != nil {
+		return err
+	}
+	// Parse second part
+	val2, err := strconv.ParseInt(string(split[1]), 10, 64)
+	if err != nil {
+		return err
+	}
+	val = val*100 + (val2 / 1000)
+	*c = Cents(val)
+	return nil
+}
+
 // PaymentTokenRequest represents a request to the Payment Token API
 type PaymentTokenRequest struct {
 	// MerchantID is the 2C2P merchant ID (required)
@@ -71,7 +108,7 @@ type PaymentTokenRequest struct {
 
 	// Amount is the payment amount (required)
 	// Format: 12 digits with 5 decimal places (e.g., 000000002500.90000)
-	Amount float64 `json:"amount"`
+	AmountCents Cents `json:"amount"`
 
 	// LoyaltyPoints is the loyalty points (optional)
 	LoyaltyPoints *LoyaltyPoints `json:"loyaltyPoints,omitempty"`
@@ -225,216 +262,6 @@ type PaymentTokenRequest struct {
 
 	// UIParams contains user interface parameters for pre-filling payment forms
 	UIParams *paymentTokenUiParams `json:"uiParams,omitempty"`
-}
-
-func (r *PaymentTokenRequest) toMap() map[string]string {
-	m := make(map[string]string)
-
-	// Required fields
-	m["merchantID"] = r.MerchantID
-	m["invoiceNo"] = r.InvoiceNo
-	m["description"] = r.Description
-	m["amount"] = fmt.Sprintf("%015.5f", r.Amount)
-	m["currencyCode"] = r.CurrencyCodeISO4217
-
-	// Optional fields
-	if r.IdempotencyID != "" {
-		m["idempotencyID"] = r.IdempotencyID
-	}
-
-	if len(r.PaymentChannel) > 0 {
-		channels := make([]string, len(r.PaymentChannel))
-		for i, ch := range r.PaymentChannel {
-			channels[i] = string(ch)
-		}
-		m["paymentChannel"] = strings.Join(channels, ",")
-	}
-
-	if len(r.AgentChannel) > 0 {
-		m["agentChannel"] = strings.Join(r.AgentChannel, ",")
-	}
-
-	if r.Request3DS != "" {
-		m["request3DS"] = string(r.Request3DS)
-	}
-
-	if r.ProtocolVersion != "" {
-		m["protocolVersion"] = r.ProtocolVersion
-	}
-
-	if r.ECI != "" {
-		m["eci"] = r.ECI
-	}
-
-	if r.CAVV != "" {
-		m["cavv"] = r.CAVV
-	}
-
-	if r.DSTransactionID != "" {
-		m["dsTransactionId"] = r.DSTransactionID
-	}
-
-	if r.Tokenize {
-		m["tokenize"] = "Y"
-	}
-
-	if len(r.CardTokens) > 0 {
-		m["customerToken"] = strings.Join(r.CardTokens, ",")
-	}
-
-	if r.TokenizeOnly {
-		m["tokenizeOnly"] = "Y"
-	}
-
-	if r.StoreCredentials != "" {
-		m["storeCredentials"] = r.StoreCredentials
-	}
-
-	if r.InterestType != "" {
-		m["interestType"] = string(r.InterestType)
-	}
-
-	if len(r.InstallmentPeriodFilterMonths) > 0 {
-		periods := make([]string, len(r.InstallmentPeriodFilterMonths))
-		for i, p := range r.InstallmentPeriodFilterMonths {
-			periods[i] = strconv.Itoa(p)
-		}
-		m["installmentPeriodFilter"] = strings.Join(periods, ",")
-	}
-
-	if len(r.InstallmentBankFilter) > 0 {
-		m["installmentBankFilter"] = strings.Join(r.InstallmentBankFilter, ",")
-	}
-
-	if r.ProductCode != "" {
-		m["productCode"] = r.ProductCode
-	}
-
-	if r.Recurring {
-		m["recurring"] = "Y"
-	}
-
-	if r.InvoicePrefix != "" {
-		m["invoicePrefix"] = r.InvoicePrefix
-	}
-
-	if r.RecurringAmount > 0 {
-		m["recurringAmount"] = fmt.Sprintf("%015.5f", r.RecurringAmount)
-	}
-
-	if r.AllowAccumulate {
-		m["allowAccumulate"] = "Y"
-	}
-
-	if r.MaxAccumulateAmount > 0 {
-		m["maxAccumulateAmount"] = fmt.Sprintf("%015.5f", r.MaxAccumulateAmount)
-	}
-
-	if r.RecurringIntervalDays > 0 {
-		m["recurringInterval"] = strconv.Itoa(r.RecurringIntervalDays)
-	}
-
-	if r.RecurringCount > 0 {
-		m["recurringCount"] = strconv.Itoa(r.RecurringCount)
-	}
-
-	if r.ChargeNextDateYYYYMMDD != "" {
-		m["chargeNextDate"] = r.ChargeNextDateYYYYMMDD
-	}
-
-	if r.ChargeOnDateYYYYMMDD != "" {
-		m["chargeOnDate"] = r.ChargeOnDateYYYYMMDD
-	}
-
-	if r.PaymentExpiryYYYYMMDDHHMMSS != "" {
-		m["paymentExpiry"] = r.PaymentExpiryYYYYMMDDHHMMSS
-	}
-
-	if r.PromotionCode != "" {
-		m["promotionCode"] = r.PromotionCode
-	}
-
-	if r.PaymentRouteID != "" {
-		m["paymentRouteID"] = r.PaymentRouteID
-	}
-
-	if r.FxProviderCode != "" {
-		m["fxProviderCode"] = r.FxProviderCode
-	}
-
-	if r.FXRateID != "" {
-		m["fxRateId"] = r.FXRateID
-	}
-
-	if r.OriginalAmount > 0 {
-		m["originalAmount"] = fmt.Sprintf("%015.5f", r.OriginalAmount)
-	}
-
-	if r.ImmediatePayment {
-		m["immediatePayment"] = "Y"
-	}
-
-	if r.IframeMode {
-		m["iframeMode"] = "Y"
-	}
-
-	if r.UserDefined1 != "" {
-		m["userDefined1"] = r.UserDefined1
-	}
-
-	if r.UserDefined2 != "" {
-		m["userDefined2"] = r.UserDefined2
-	}
-
-	if r.UserDefined3 != "" {
-		m["userDefined3"] = r.UserDefined3
-	}
-
-	if r.UserDefined4 != "" {
-		m["userDefined4"] = r.UserDefined4
-	}
-
-	if r.UserDefined5 != "" {
-		m["userDefined5"] = r.UserDefined5
-	}
-
-	if r.StatementDescriptor != "" {
-		m["statementDescriptor"] = r.StatementDescriptor
-	}
-
-	if r.ExternalSubMerchantID != "" {
-		m["externalSubMerchantID"] = r.ExternalSubMerchantID
-	}
-
-	if len(r.SubMerchants) > 0 {
-		for i, sm := range r.SubMerchants {
-			prefix := fmt.Sprintf("subMerchant[%d].", i)
-			m[prefix+"merchantID"] = sm.MerchantID
-			m[prefix+"amount"] = fmt.Sprintf("%015.5f", sm.Amount)
-			m[prefix+"invoiceNo"] = sm.InvoiceNo
-			m[prefix+"description"] = sm.Description
-		}
-	}
-
-	if r.UIParams != nil {
-		if r.UIParams.UserInfo != nil {
-			ui := r.UIParams.UserInfo
-			if ui.Name != "" {
-				m["userInfo.name"] = ui.Name
-			}
-			if ui.Email != "" {
-				m["userInfo.email"] = ui.Email
-			}
-			if ui.Address != "" {
-				m["userInfo.address"] = ui.Address
-			}
-			if ui.CountryCodeISO3166 != "" {
-				m["userInfo.countryCode"] = ui.CountryCodeISO3166
-			}
-		}
-	}
-
-	return m
 }
 
 func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRequest) (*http.Request, error) {
