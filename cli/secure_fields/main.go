@@ -41,6 +41,9 @@ func main() {
 		log.Fatalf("Error reading private key file %q: %v", *privateKeyFile, err)
 	}
 
+	// Create 2C2P client
+	client := api2c2p.NewClient(*secretKey, *merchantID, *c2cpURL)
+
 	// Generate the payment form HTML with secure fields
 	secureFieldsHTML := api2c2p.SecureFieldsFormHTML(*merchantID, *secretKey, *formAction, *sandbox)
 
@@ -61,7 +64,9 @@ func main() {
 	})
 
 	// Handler for backend payment notifications
-	http.HandleFunc("/payment-notify", handlePaymentNotification)
+	http.HandleFunc("/payment-notify", func(w http.ResponseWriter, r *http.Request) {
+		handlePaymentNotification(w, r, client)
+	})
 
 	// Start the server
 	addr := fmt.Sprintf(":%d", *port)
@@ -165,7 +170,7 @@ func handlePaymentResponse(w http.ResponseWriter, r *http.Request, privateKey []
 
 // handlePaymentNotification processes backend notifications from 2C2P
 // These notifications are used to update the payment status in your system
-func handlePaymentNotification(w http.ResponseWriter, r *http.Request) {
+func handlePaymentNotification(w http.ResponseWriter, r *http.Request, client *api2c2p.Client) {
 	log.Println(r.Method, r.URL.String())
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "Error parsing form: "+err.Error(), http.StatusBadRequest)
@@ -187,6 +192,18 @@ func handlePaymentNotification(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Payment notification received: RespCode=%s XML=%s", response.RespCode, string(decrypted))
+
+	inquiryResponse, err := client.PaymentInquiry(r.Context(), &api2c2p.PaymentInquiryRequest{
+		MerchantID: client.MerchantID,
+		InvoiceNo:  response.TranRef,
+		Locale:     "en",
+	})
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Error inquiring payment: %v", err), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("Payment inquiry result: %#v", inquiryResponse)
+
 	w.WriteHeader(http.StatusOK)
 }
 
