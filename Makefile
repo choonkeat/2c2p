@@ -1,8 +1,8 @@
 .PHONY: test docs-view
 
 test: gofmt
-	for cli in cli/*; do \
-		(go run $$cli/*.go -h) || exit 1; \
+	for cmd in cmd/*; do \
+		(go run $$cmd/*.go -h) || exit 1; \
 	done
 	@echo done sanity check CLIs
 	go test ./...

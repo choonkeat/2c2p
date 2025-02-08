@@ -53,7 +53,7 @@ func TestDecryptPaymentResponse(t *testing.T) {
 			}
 
 			// Decrypt the data
-			got, err := DecryptPKCS7(encryptedData, privateKey)
+			got, err := decryptPKCS7(encryptedData, privateKey)
 			if err != nil {
 				t.Fatalf("Failed to decrypt data: %v", err)
 			}

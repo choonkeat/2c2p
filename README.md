@@ -46,7 +46,7 @@ Before running SecureFields integration:
 
 1. Generate server-to-server key pair:
 ```bash
-go run cli/server-to-server-key/main.go
+go run cmd/server-to-server-key/main.go
 ```
 
 2. Configure 2C2P merchant portal:
@@ -57,12 +57,12 @@ go run cli/server-to-server-key/main.go
 
 3. Start the SecureFields server:
 ```bash
-go run cli/secure_fields/main.go -merchantID your_merchant_id -secretKey your_secret_key
+go run cmd/secure_fields/main.go -merchantID your_merchant_id -secretKey your_secret_key
 ```
 
 For implementation details, refer to:
-- Frontend response handling: See `handlePaymentResponse` in `cli/secure_fields/main.go`
-- Backend notification handling: See `handlePaymentNotification` in `cli/secure_fields/main.go`
+- Frontend response handling: See `handlePaymentResponse` in `cmd/secure_fields/main.go`
+- Backend notification handling: See `handlePaymentNotification` in `cmd/secure_fields/main.go`
 - Response field definitions: See `PaymentResponseBackEnd` in `payment_response_backend.go`
 
 ## Code Organization and Implementation Principles
@@ -84,7 +84,7 @@ The codebase follows a clear separation of concerns that makes it both testable 
    - Includes JWT token validation tests
 
 3. **CLI Implementation**
-   - Each API has a focused CLI tool in `cli/api-name/main.go`
+   - Each API has a focused CLI tool in `cmd/api-name/main.go`
    - Remains implementation-agnostic by importing the SDK
    - Includes proper validation and help text
    - Formats output to be human-readable
@@ -138,14 +138,14 @@ This organization ensures:
 For example, see the Payment Inquiry API implementation:
 - API implementation in `payment_inquiry.go`
 - Tests in `payment_inquiry_test.go`
-- CLI tool in `cli/payment-inquiry/main.go`
+- CLI tool in `cmd/payment-inquiry/main.go`
 
 ## Code Style and Practices
 
 ### Code Organization
 
 1. **Unexport Unused Types and Functions**:
-   - Types, functions, and methods that are not used in `cli/*.go` should be unexported
+   - Types, functions, and methods that are not used in `cmd/*.go` should be unexported
    - This keeps the public API surface minimal and focused on actual usage
    ```go
    // Good - unexported since only used internally
@@ -154,7 +154,7 @@ For example, see the Payment Inquiry API implementation:
        Response *debugResponse
    }
 
-   // Bad - exported but not used in cli/*.go
+   // Bad - exported but not used in cmd/*.go
    type DebugInfo struct {
        Request  *DebugRequest
        Response *DebugResponse

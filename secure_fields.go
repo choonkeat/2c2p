@@ -329,7 +329,7 @@ func DecryptPaymentResponseBackend(r FormValuer, privateKey []byte) (PaymentResp
 	encryptedResponse := r.PostFormValue("paymentResponse")
 
 	// Decrypt the response
-	decrypted, err := DecryptPKCS7([]byte(encryptedResponse), privateKey)
+	decrypted, err := decryptPKCS7([]byte(encryptedResponse), privateKey)
 	if err != nil {
 		return PaymentResponseBackEnd{}, nil, fmt.Errorf("error decrypting response: %w", err)
 	}
@@ -344,9 +344,9 @@ func DecryptPaymentResponseBackend(r FormValuer, privateKey []byte) (PaymentResp
 	return response, decrypted, nil
 }
 
-// DecryptPKCS7 decrypts base64-encoded PKCS7 enveloped data using certificate and private key from PEM data.
+// decryptPKCS7 decrypts base64-encoded PKCS7 enveloped data using certificate and private key from PEM data.
 // The combinedPEM must contain both a private key (PKCS8) and certificate in PEM format.
-func DecryptPKCS7(encryptedData []byte, combinedPEM []byte) ([]byte, error) {
+func decryptPKCS7(encryptedData []byte, combinedPEM []byte) ([]byte, error) {
 	var privKey interface{}
 	var cert *x509.Certificate
 
