@@ -21,7 +21,7 @@ type Client struct {
 	MerchantID string
 
 	// httpClient is the HTTP client used for making requests
-	httpClient *http.Client
+	httpClient *LoggingClient
 
 	// BaseURL is the base URL for API requests
 	BaseURL string
@@ -43,10 +43,11 @@ func NewClient(cfg Config) *Client {
 	if cfg.HttpClient == nil {
 		cfg.HttpClient = &http.Client{}
 	}
+	loggingClient := NewLoggingClient(cfg.HttpClient, nil, true)
 	return &Client{
 		SecretKey:  cfg.SecretKey,
 		MerchantID: cfg.MerchantID,
-		httpClient: cfg.HttpClient,
+		httpClient: loggingClient,
 		BaseURL:    cfg.BaseURL,
 	}
 }
