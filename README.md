@@ -30,6 +30,23 @@ Always refer to the official 2C2P API documentation:
 - [Flow Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment-flow)
 - [QR Payment API](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment)
 
+### API Encryption
+
+The following APIs use encryption to secure sensitive data:
+
+1. **SecureFields API**
+   - Backend responses are encrypted using PKCS7
+   - Responses are decrypted using the merchant's private key
+   - Card data is transmitted in encrypted format
+
+2. **JWT-based APIs**
+   - Payment Token API: Request payload is signed using JWT
+   - Payment Inquiry API: Request payload is signed using JWT
+   - Tokens are generated using the merchant's secret key
+
+3. **Standard HTTPS APIs**
+   - QR Payment API uses standard HTTPS without additional encryption layers
+
 ## Usage
 
 ### Creating a Client
