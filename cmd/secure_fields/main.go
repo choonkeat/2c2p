@@ -183,7 +183,7 @@ func handlePaymentNotification(w http.ResponseWriter, r *http.Request, client *a
 		return
 	}
 
-	log.Printf("Payment notification received: RespCode=%s XML=%s", response.RespCode, string(decrypted))
+	log.Printf("Payment notification received: RespCode=%s XML=%s", string(response.RespCode), string(decrypted))
 
 	inquiryResponse, err := client.PaymentInquiryByInvoice(r.Context(), &api2c2p.PaymentInquiryByInvoiceRequest{
 		InvoiceNo: response.TranRef,
@@ -272,7 +272,7 @@ func renderPaymentResult(w http.ResponseWriter, response api2c2p.PaymentResponse
 		CardNumber:  response.PAN,
 		CardType:    response.CardType,
 		Bank:        response.BankName,
-		RespCode:    response.RespCode,
+		RespCode:    string(response.RespCode),
 		DateTime:    response.DateTime,
 		RawResponse: rawResponse,
 	}

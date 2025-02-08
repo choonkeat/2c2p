@@ -75,7 +75,7 @@ func TestDecryptPaymentResponse(t *testing.T) {
 func TestDecryptPaymentResponseWithXML(t *testing.T) {
 	// Create a test payment response
 	testResp := PaymentResponseBackEnd{
-		RespCode: "0000",
+		RespCode: Code0000Successful,
 	}
 	xmlData, err := xml.Marshal(testResp)
 	if err != nil {

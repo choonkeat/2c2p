@@ -116,7 +116,7 @@ type PaymentInquiryResponse struct {
 	TranRef string `json:"tranRef"`
 
 	// RespCode is the response code (C 4, M)
-	RespCode string `json:"respCode"`
+	RespCode PaymentFlowResponseCode `json:"respCode"`
 
 	// RespDesc is the response description (C 255, M)
 	RespDesc string `json:"respDesc"`
@@ -230,6 +230,16 @@ type PaymentInquiryResponse struct {
 	IdempotencyID string `json:"idempotencyID"`
 }
 
+// IsSuccess returns true if the response code indicates success
+func (r *PaymentInquiryResponse) IsSuccess() bool {
+	switch r.RespCode {
+	case FlowOtherTransactionFailedOrRejectedPerformPaymentInquiryToGetPayment:
+		return false
+	default:
+		return true
+	}
+}
+
 func (c *Client) newPaymentInquiryRequest(ctx context.Context, merchantID string, payload interface{}) (*http.Request, error) {
 	// Convert payload to JSON
 	payloadBytes, err := json.Marshal(payload)
@@ -290,8 +300,8 @@ func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryB
 	if err := json.NewDecoder(resp.Body).Decode(&jwtResponse); err != nil || jwtResponse.Payload == "" {
 		// Try decoding as direct response
 		var response struct {
-			RespCode string `json:"respCode"`
-			RespDesc string `json:"respDesc"`
+			RespCode PaymentFlowResponseCode `json:"respCode"`
+			RespDesc string                  `json:"respDesc"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return nil, fmt.Errorf("decode response: %w", err)
@@ -309,8 +319,7 @@ func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryB
 	}
 
 	// Check response code
-	switch inquiryResp.RespCode {
-	case "0000", "0001", "1005", "2001":
+	if inquiryResp.IsSuccess() {
 		return &inquiryResp, nil
 	}
 	return &inquiryResp, fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc)
@@ -344,8 +353,8 @@ func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquir
 	if err := json.NewDecoder(resp.Body).Decode(&jwtResponse); err != nil || jwtResponse.Payload == "" {
 		// Try decoding as direct response
 		var response struct {
-			RespCode string `json:"respCode"`
-			RespDesc string `json:"respDesc"`
+			RespCode PaymentFlowResponseCode `json:"respCode"`
+			RespDesc string                  `json:"respDesc"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return nil, fmt.Errorf("decode response: %w", err)
@@ -363,8 +372,7 @@ func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquir
 	}
 
 	// Check response code
-	switch inquiryResp.RespCode {
-	case "0000", "0001", "1005", "2001":
+	if inquiryResp.IsSuccess() {
 		return &inquiryResp, nil
 	}
 	return &inquiryResp, fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc)

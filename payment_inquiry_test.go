@@ -65,7 +65,7 @@ func TestPaymentInquiry(t *testing.T) {
 		PaidAgent:                     "OCBC",
 		PaidChannel:                   "VI",
 		PaidDateTime:                  "311220235959",
-		RespCode:                      "0000",
+		RespCode:                      Flow1000LoadRedirectUrlWithIframeWebview,
 		RespDesc:                      "Transaction is successful.",
 	}
 
@@ -241,7 +241,7 @@ func TestPaymentInquiryByToken(t *testing.T) {
 		PaidAgent:                     "OCBC",
 		PaidChannel:                   "VI",
 		PaidDateTime:                  "311220235959",
-		RespCode:                      "0000",
+		RespCode:                      Flow10051DisplayGeneratedQrAndWaitForCustomerToScan,
 		RespDesc:                      "Transaction is successful.",
 	}
 

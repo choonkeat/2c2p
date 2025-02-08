@@ -249,7 +249,7 @@ func main() {
 	})
 
 	// Handler for QR payment callback
-	http.HandleFunc("/qr-payment-callback", handleQRPaymentCallback(client))
+	http.HandleFunc("/qr-payment-callback", handleQRPaymentCallback)
 
 	// Start the server
 	addr := fmt.Sprintf(":%d", *port)
@@ -359,12 +359,10 @@ func handleQRPayment(client *api2c2p.Client) http.HandlerFunc {
 	}
 }
 
-func handleQRPaymentCallback(client *api2c2p.Client) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("QR payment callback received: %+v", r.URL.Query())
+func handleQRPaymentCallback(w http.ResponseWriter, r *http.Request) {
+	log.Printf("QR payment callback received: %+v", r.URL.Query())
 
-		// Return success response
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
-	}
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }

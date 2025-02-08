@@ -1,0 +1,33 @@
+Response Code,Platform,Payment Flow,Action Required,,,
+1000,Web / Mobile,Load redirect URL with IFrame / Webview.,Client should close the iframe when the URL is loading RESULT URL and read the BODY message.,,,
+1001,Web / Mobile,Full redirection to web page,Do full redirection to 3rd party web page.,,,
+1002,Web / Mobile,"1. Redirect to Scheme URL (deep link) or web URL.
+
+2. Query the transaction status via API.","Mobile :
+1. Redirect Scheme URL (deep ink) to open third-party app that does not do callback
+2. Once app resumes, call Transaction Status API.
+
+WEB:
+1. Redirect URL with multiple tab in external web browser.
+2. Do a looping query or long post to get transaction status.
+
+Refer to Transaction Status Inquiry API",,,
+1003,Web / Mobile,Get and display the payslip information and waiting customer to pay it,"1. Get payslip info, and display payslip.
+2. Set transaction status as PENDING",,,
+1004,Mobile,"Redirect to external app with app scheme, and back with app call back.","1. Redirect to APP scheme
+2. Receive call back from 3rd party APP.",,,
+1005,Web / Mobile,"1. Display generated QR, and wait for customer to scan / pay it.
+2. Query the transaction status via API.","1. Get and display generated QR
+2. Do a looping query or long post to get transaction status.
+
+Refer to Transaction Status Inquiry API",,,
+2000,Web / Mobile,Transaction completed and merchant require to display payment result.,"For merchants who implement backend response :
+1. A Payment Backend Response will be returned to the merchant server once payment has been completed and the merchant has updated it in their backend system.
+3. Once the merchant receives 2000, the merchant should check the payment status from their backend system and display the payment result to the customer
+
+For merchants who do not implement backend response :
+1. Call Payment Inquiry API to get payment result
+2. The merchant can then display the payment result to customer",,,
+"Other Code
+
+Refer to API Response Code",Web / Mobile,"Transaction failed or rejected, perform payment inquiry to get payment status and full response.","Get payment result, and display result to customer. End of payment flow.",,,

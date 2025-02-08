@@ -329,8 +329,8 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 	if err := json.NewDecoder(resp.Body).Decode(&jwtResponse); err != nil || jwtResponse.Payload == "" {
 		// Try decoding as direct response
 		var response struct {
-			RespCode string `json:"respCode"`
-			RespDesc string `json:"respDesc"`
+			RespCode PaymentResponseCode `json:"respCode"`
+			RespDesc string              `json:"respDesc"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return nil, fmt.Errorf("decode response: %w", err)
@@ -348,7 +348,7 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 	}
 
 	// Check response code
-	if tokenResp.RespCode != "0000" {
+	if tokenResp.RespCode != Code0000Successful {
 		return &tokenResp, fmt.Errorf("payment token failed: %s (%s)", tokenResp.RespCode, tokenResp.RespDesc)
 	}
 
@@ -408,15 +408,19 @@ type paymentTokenUserInfo struct {
 type PaymentTokenResponse struct {
 	// RespCode is the response code
 	// "0000" indicates success
-	RespCode string `json:"respCode"`
+	RespCode PaymentResponseCode `json:"respCode"`
 
 	// RespDesc is the response description
 	RespDesc string `json:"respDesc"`
 
-	// PaymentToken is the generated payment token
-	// Used for initiating the payment
+	// PaymentToken is the token to be used for payment
 	PaymentToken string `json:"paymentToken"`
 
 	// WebPaymentURL is the URL to redirect customers for payment
 	WebPaymentURL string `json:"webPaymentUrl"`
+}
+
+// IsSuccess returns true if the response code indicates success
+func (r *PaymentTokenResponse) IsSuccess() bool {
+	return r.RespCode == Code0000Successful
 }

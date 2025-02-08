@@ -44,10 +44,30 @@ type DoPaymentResponse struct {
 	FallbackData string `json:"fallbackData"`
 
 	// RespCode is the response code (C 4, M)
-	RespCode string `json:"respCode"`
+	RespCode PaymentResponseCode `json:"respCode"`
 
 	// RespDesc is the response description (C 255, M)
 	RespDesc string `json:"respDesc"`
+}
+
+// PaymentOptionResponse represents a response from the payment option API
+// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-option-response-parameter
+type PaymentOptionResponse struct {
+	// PaymentToken is the payment token ID (C 255, M)
+	PaymentToken string `json:"paymentToken"`
+
+	// RespCode is the response code (N 4, M)
+	RespCode PaymentResponseCode `json:"respCode"`
+
+	// RespDesc is the response description (C 255, M)
+	RespDesc string `json:"respDesc"`
+}
+
+// APIResponse represents a response from the payment option details API
+type APIResponse struct {
+	Payload  string              `json:"payload"`
+	RespCode PaymentResponseCode `json:"respCode"`
+	RespDesc string              `json:"respDesc"`
 }
 
 // DoPaymentRequest represents a request to do a QR payment
@@ -73,19 +93,6 @@ type DoPaymentRequest struct {
 		} `json:"code"`
 		Data map[string]string `json:"data,omitempty"`
 	} `json:"payment"`
-}
-
-// PaymentOptionResponse represents a response from the payment option API
-// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-option-response-parameter
-type PaymentOptionResponse struct {
-	// PaymentToken is the payment token ID (C 255, M)
-	PaymentToken string `json:"paymentToken"`
-
-	// RespCode is the response code (N 4, M)
-	RespCode string `json:"respCode"`
-
-	// RespDesc is the response description (C 255, M)
-	RespDesc string `json:"respDesc"`
 }
 
 // PaymentOptionRequest represents a request to get available payment options
@@ -127,13 +134,6 @@ type PaymentOptionDetailsRequest struct {
 	// GroupCode is the payment group code (Mandatory, AN 10)
 	// Get from Payment Options API
 	GroupCode string `json:"groupCode"`
-}
-
-// APIResponse represents a response from the payment option details API
-type APIResponse struct {
-	Payload  string `json:"payload"`
-	RespCode string `json:"respCode"`
-	RespDesc string `json:"respDesc"`
 }
 
 // DoPaymentParams represents parameters for creating a new do payment request

@@ -26,6 +26,8 @@ Always refer to the official 2C2P API documentation:
 - [Payment Inquiry API](https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry)
 - [Using SecureFields](https://developer.2c2p.com/v4.3.1/docs/using-securefields)
 - [Payment Response Parameters](https://developer.2c2p.com/v4.3.1/docs/api-payment-response-back-end-parameter)
+- [Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment)
+- [Flow Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment-flow)
 - [QR Payment API](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment)
 
 ## Usage
