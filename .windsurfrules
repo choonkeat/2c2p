@@ -3,3 +3,4 @@ append the user's message into logs/YYYY-MM-DD.md under the heading `## USER`.
 2. After responding the user in every message of every conversation,
 append the entire response (excluding code diffs) into logs/YYYY-MM-DD.md under the heading `## ASSISTANT`.
 3. Always follow the rules in README.md file.
+4. If `make test` fails due to compiler errors, then the refactoring is incomplete. But if `make test` fails then it is most likely your change introduced logic bugs: fix the code, not the tests

@@ -31,12 +31,12 @@ Example Usage:
 
 	tokenResponse, err := client.PaymentInquiryByToken(ctx, tokenRequest)
 	if err != nil {
-	    log.Fatalf("Error: %v", err)
+	    fmt.Printf("Error: %v\n", err)
 	}
 
 	invoiceResponse, err := client.PaymentInquiryByInvoice(ctx, invoiceRequest)
 	if err != nil {
-	    log.Fatalf("Error: %v", err)
+	    fmt.Printf("Error: %v\n", err)
 	}
 
 	fmt.Printf("Payment status by token: %s - %s\n", tokenResponse.RespCode, tokenResponse.RespDesc)
@@ -49,22 +49,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 )
 
 // PaymentInquiryByTokenRequest represents the request payload for payment inquiry by payment token
 type PaymentInquiryByTokenRequest struct {
+	Locale       string `json:"locale,omitempty"`
 	MerchantID   string `json:"merchantID"`
 	PaymentToken string `json:"paymentToken"` // Required
-	Locale       string `json:"locale,omitempty"`
 }
 
 // PaymentInquiryByInvoiceRequest represents the request payload for payment inquiry by invoice number
 type PaymentInquiryByInvoiceRequest struct {
-	MerchantID string `json:"merchantID"`
 	InvoiceNo  string `json:"invoiceNo"` // Required
 	Locale     string `json:"locale,omitempty"`
+	MerchantID string `json:"merchantID"`
 }
 
 // PaymentInquiryResponse represents the decoded response from payment inquiry
@@ -120,37 +119,35 @@ type PaymentInquiryResponse struct {
 }
 
 func (c *Client) newPaymentInquiryRequest(ctx context.Context, merchantID string, payload interface{}) (*http.Request, error) {
-	url := c.endpoint("paymentInquiry")
-
-	// Convert request to JSON
-	jsonData, err := json.Marshal(payload)
+	// Convert payload to JSON
+	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
+		return nil, fmt.Errorf("error marshaling payload: %v", err)
 	}
 
-	// Generate JWT token
-	token, err := c.generateJWTToken(jsonData)
+	// Create JWT token
+	token, err := c.generateJWTToken(payloadBytes)
 	if err != nil {
-		return nil, fmt.Errorf("generate jwt token: %w", err)
+		return nil, fmt.Errorf("error generating JWT token: %v", err)
 	}
 
-	// Prepare the request body
+	// Create request body
 	requestBody := map[string]string{
 		"payload": token,
 	}
-	jsonBody, err := json.Marshal(requestBody)
+	requestBytes, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, fmt.Errorf("marshal request body: %w", err)
+		return nil, fmt.Errorf("error marshaling request body: %v", err)
 	}
-	log.Printf("Payment inquiry request body: %s\n", string(jsonBody))
 
-	// Create HTTP request
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	// Create request with context
+	req, err := http.NewRequestWithContext(ctx, "POST", c.endpoint("paymentInquiry"), bytes.NewReader(requestBytes))
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w\nURL: %s", err, url)
+		return nil, fmt.Errorf("create payment inquiry request: %w", err)
 	}
-	httpReq.Header.Set("Content-Type", "application/json")
-	return httpReq, nil
+	req.Header.Set("Content-Type", "application/json")
+
+	return req, nil
 }
 
 // PaymentInquiryByToken checks the status of a payment using a payment token
@@ -167,26 +164,25 @@ func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryB
 		return nil, err
 	}
 
-	// Make request with debug info
-	resp, debug, err := c.doRequestWithDebug(httpReq)
+	// Make request
+	resp, err := c.do(httpReq)
 	if err != nil {
-		return nil, c.formatErrorWithDebug(fmt.Errorf("do request: %w", err), debug)
+		return nil, err
 	}
 	defer resp.Body.Close()
-	log.Printf("Payment inquiry response body: %s", debug.Response.Body)
 
 	// Try to decode response
 	var jwtResponse struct {
 		Payload string `json:"payload"`
 	}
-	if err := json.Unmarshal([]byte(debug.Response.Body), &jwtResponse); err != nil || jwtResponse.Payload == "" {
+	if err := json.NewDecoder(resp.Body).Decode(&jwtResponse); err != nil || jwtResponse.Payload == "" {
 		// Try decoding as direct response
 		var response struct {
 			RespCode string `json:"respCode"`
 			RespDesc string `json:"respDesc"`
 		}
-		if err := json.Unmarshal([]byte(debug.Response.Body), &response); err != nil {
-			return nil, c.formatErrorWithDebug(fmt.Errorf("decode response: %w", err), debug)
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return nil, fmt.Errorf("decode response: %w", err)
 		}
 		return &PaymentInquiryResponse{
 			RespCode: response.RespCode,
@@ -197,7 +193,7 @@ func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryB
 	// If we got a JWT response, decode it
 	var inquiryResp PaymentInquiryResponse
 	if err := c.decodeJWTToken(jwtResponse.Payload, &inquiryResp); err != nil {
-		return nil, c.formatErrorWithDebug(fmt.Errorf("decode jwt token: %w", err), debug)
+		return nil, fmt.Errorf("decode jwt token: %w", err)
 	}
 
 	// Check response code
@@ -205,7 +201,7 @@ func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryB
 	case "0000", "0001", "1005", "2001":
 		return &inquiryResp, nil
 	}
-	return &inquiryResp, c.formatErrorWithDebug(fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc), debug)
+	return &inquiryResp, fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc)
 }
 
 // PaymentInquiryByInvoice checks the status of a payment using an invoice number
@@ -222,26 +218,25 @@ func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquir
 		return nil, err
 	}
 
-	// Make request with debug info
-	resp, debug, err := c.doRequestWithDebug(httpReq)
+	// Make request
+	resp, err := c.do(httpReq)
 	if err != nil {
-		return nil, c.formatErrorWithDebug(fmt.Errorf("do request: %w", err), debug)
+		return nil, err
 	}
 	defer resp.Body.Close()
-	log.Printf("Payment inquiry response body: %s", debug.Response.Body)
 
 	// Try to decode response
 	var jwtResponse struct {
 		Payload string `json:"payload"`
 	}
-	if err := json.Unmarshal([]byte(debug.Response.Body), &jwtResponse); err != nil || jwtResponse.Payload == "" {
+	if err := json.NewDecoder(resp.Body).Decode(&jwtResponse); err != nil || jwtResponse.Payload == "" {
 		// Try decoding as direct response
 		var response struct {
 			RespCode string `json:"respCode"`
 			RespDesc string `json:"respDesc"`
 		}
-		if err := json.Unmarshal([]byte(debug.Response.Body), &response); err != nil {
-			return nil, c.formatErrorWithDebug(fmt.Errorf("decode response: %w", err), debug)
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return nil, fmt.Errorf("decode response: %w", err)
 		}
 		return &PaymentInquiryResponse{
 			RespCode: response.RespCode,
@@ -252,7 +247,7 @@ func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquir
 	// If we got a JWT response, decode it
 	var inquiryResp PaymentInquiryResponse
 	if err := c.decodeJWTToken(jwtResponse.Payload, &inquiryResp); err != nil {
-		return nil, c.formatErrorWithDebug(fmt.Errorf("decode jwt token: %w", err), debug)
+		return nil, fmt.Errorf("decode jwt token: %w", err)
 	}
 
 	// Check response code
@@ -260,5 +255,5 @@ func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquir
 	case "0000", "0001", "1005", "2001":
 		return &inquiryResp, nil
 	}
-	return &inquiryResp, c.formatErrorWithDebug(fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc), debug)
+	return &inquiryResp, fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc)
 }
