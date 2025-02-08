@@ -51,10 +51,11 @@ type PaymentInquiryRequest struct {
 }
 
 // PaymentInquiryResponse represents the decoded response from payment inquiry
+// https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry-response-parameter
 type PaymentInquiryResponse struct {
 	MerchantID                    string  `json:"merchantID"`                    // C 25, M
 	InvoiceNo                     string  `json:"invoiceNo"`                     // AN 50, M
-	Amount                        float64 `json:"amount"`                        // D (12,5), M
+	Amount                        float64 `json:"amount"`                        // D (12,5), M, but is NOT string in json; just float
 	CurrencyCode                  string  `json:"currencyCode"`                  // A 3, M
 	TransactionDateTime           string  `json:"transactionDateTime"`           // N 14, M
 	AgentCode                     string  `json:"agentCode"`                     // AN 30, M
