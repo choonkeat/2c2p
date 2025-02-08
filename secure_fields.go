@@ -220,6 +220,30 @@ type SecureFieldsPaymentDetails struct {
 	UserDefined5 string
 }
 
+// PaymentRequest represents the XML structure for a payment request
+type PaymentRequest struct {
+	XMLName               xml.Name `xml:"PaymentRequest"`
+	Version               string   `xml:"version"`
+	TimeStamp             string   `xml:"timeStamp"`
+	MerchantID            string   `xml:"merchantID"`
+	UniqueTransactionCode string   `xml:"uniqueTransactionCode"`
+	Description           string   `xml:"desc"`
+	Amount                string   `xml:"amt"`
+	CurrencyCode          string   `xml:"currencyCode"`
+	PaymentChannel        string   `xml:"paymentChannel"`
+	PanCountry            string   `xml:"panCountry"`
+	CardholderName        string   `xml:"cardholderName"`
+	Request3DS            string   `xml:"request3DS"`
+	SecureHash            string   `xml:"secureHash"`
+	StoreCard             string   `xml:"storeCard"`
+	EncCardData           string   `xml:"encCardData"`
+	UserDefined1          string   `xml:"userDefined1"`
+	UserDefined2          string   `xml:"userDefined2"`
+	UserDefined3          string   `xml:"userDefined3"`
+	UserDefined4          string   `xml:"userDefined4"`
+	UserDefined5          string   `xml:"userDefined5"`
+}
+
 func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, invoiceNo string, paymentDetails SecureFieldsPaymentDetails, form FormValuer) SecureFieldsPaymentPayload {
 	encryptedCardInfo := form.PostFormValue("encryptedCardInfo")
 
@@ -237,51 +261,39 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 	hmacHash := createHMAC(strToHash, secretKey)
 
 	// Create payment request XML
-	xmlStr := fmt.Sprintf(`<PaymentRequest>
-		<version>9.4</version>
-		<timeStamp>%s</timeStamp>
-		<merchantID>%s</merchantID>
-		<uniqueTransactionCode>%s</uniqueTransactionCode>
-		<desc>%s</desc>
-		<amt>%s</amt>
-		<currencyCode>%s</currencyCode>
-		<paymentChannel></paymentChannel>
-		<panCountry>%s</panCountry>
-		<cardholderName>%s</cardholderName>
-		<request3DS>Y</request3DS>
-		<secureHash>%s</secureHash>
-		<storeCard>%s</storeCard>
-		<encCardData>%s</encCardData>
-		<userDefined1>%s</userDefined1>
-		<userDefined2>%s</userDefined2>
-		<userDefined3>%s</userDefined3>
-		<userDefined4>%s</userDefined4>
-		<userDefined5>%s</userDefined5>
-	</PaymentRequest>`,
-		timestamp,
-		merchantID,
-		invoiceNo,
-		paymentDetails.Description,
-		paymentDetails.AmountCents.XMLString(),
-		paymentDetails.CurrencyCode,
-		paymentDetails.CountryCode,
-		paymentDetails.CustomerName,
-		hmacHash,
-		paymentDetails.StoreCard,
-		encryptedCardInfo,
-		paymentDetails.UserDefined1,
-		paymentDetails.UserDefined2,
-		paymentDetails.UserDefined3,
-		paymentDetails.UserDefined4,
-		paymentDetails.UserDefined5,
-	)
-	log.Printf("Payment request XML (before base64): %s", xmlStr)
+	paymentRequest := PaymentRequest{
+		Version:               "9.4",
+		TimeStamp:             timestamp,
+		MerchantID:            merchantID,
+		UniqueTransactionCode: invoiceNo,
+		Description:           paymentDetails.Description,
+		Amount:                paymentDetails.AmountCents.XMLString(),
+		CurrencyCode:          paymentDetails.CurrencyCode,
+		PanCountry:            paymentDetails.CountryCode,
+		CardholderName:        paymentDetails.CustomerName,
+		Request3DS:            "Y",
+		SecureHash:            hmacHash,
+		StoreCard:             paymentDetails.StoreCard,
+		EncCardData:           encryptedCardInfo,
+		UserDefined1:          paymentDetails.UserDefined1,
+		UserDefined2:          paymentDetails.UserDefined2,
+		UserDefined3:          paymentDetails.UserDefined3,
+		UserDefined4:          paymentDetails.UserDefined4,
+		UserDefined5:          paymentDetails.UserDefined5,
+	}
+
+	// Marshal the payment request to XML
+	xmlBytes, err := xml.Marshal(paymentRequest)
+	if err != nil {
+		log.Printf("Error marshaling payment request to XML: %v", err)
+		return SecureFieldsPaymentPayload{}
+	}
 
 	// Base64 encode the XML
 	return SecureFieldsPaymentPayload{
 		FormURL: c2pURL + "/2C2PFrontEnd/SecurePayment/PaymentAuth.aspx",
 		FormFields: map[string]string{
-			"paymentRequest": base64.StdEncoding.EncodeToString([]byte(xmlStr)),
+			"paymentRequest": base64.StdEncoding.EncodeToString(xmlBytes),
 		},
 	}
 }
