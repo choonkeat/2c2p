@@ -127,6 +127,7 @@ func (c *Client) newPaymentInquiryRequest(ctx context.Context, req *PaymentInqui
 	if err != nil {
 		return nil, fmt.Errorf("marshal request body: %w", err)
 	}
+	log.Printf("Payment inquiry request body: %s\n", string(jsonBody))
 
 	// Create HTTP request
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
