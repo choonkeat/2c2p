@@ -16,12 +16,20 @@ import (
 	"github.com/fullsailor/pkcs7"
 )
 
-// SecureFieldsResponse represents the encrypted card data response from 2C2P Secure Fields
+// SecureFieldsResponse represents a response from the secure fields API
+// Documentation (PHP Code): https://developer.2c2p.com/v4.3.1/docs/using-securefields
 type SecureFieldsResponse struct {
+	// EncryptedCardInfo contains the encrypted card data from 2C2P Secure Fields
 	EncryptedCardInfo string // used to make card payment
-	MaskedCardInfo    string // first 6 and last 4 masked PAN
-	ExpMonthCardInfo  string // card expiry month
-	ExpYearCardInfo   string // card expiry year
+
+	// MaskedCardInfo contains first 6 and last 4 masked PAN
+	MaskedCardInfo string // first 6 and last 4 masked PAN
+
+	// ExpMonthCardInfo contains the card expiry month
+	ExpMonthCardInfo string // card expiry month
+
+	// ExpYearCardInfo contains the card expiry year
+	ExpYearCardInfo string // card expiry year
 }
 
 // SecureFieldsErrorResponse represents error details from 2C2P Secure Fields

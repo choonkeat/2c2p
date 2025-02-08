@@ -9,61 +9,124 @@ import (
 	"strings"
 )
 
-// QRPaymentRequest represents a request to create a QR code payment
-type QRPaymentRequest struct {
-	ClientID     string `json:"clientID"`
-	ClientIP     string `json:"clientIP"`
+// DoPaymentResponse represents a response from the QR payment API
+// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-do-payment-response-parameter
+type DoPaymentResponse struct {
+	// PaymentToken is the token from the payment token request
 	PaymentToken string `json:"paymentToken"`
-	ReturnURL    string `json:"responseReturnUrl"`
-}
 
-// QRPaymentResponse represents a response from the QR code payment API
-type QRPaymentResponse struct {
-	ChannelCode       string `json:"channelCode"`
-	Data              string `json:"data"`
+	// ChannelCode is the payment channel code (AN 6, M)
+	ChannelCode string `json:"channelCode"`
+
+	// InvoiceNo is the unique merchant order number (AN 50, C)
+	// Only returned when respCode is 2000 (transaction completed)
+	InvoiceNo string `json:"invoiceNo"`
+
+	// Type is the data type (A 6, C)
+	// For QR = QR data type
+	Type string `json:"type"`
+
+	// ExpiryTimer is the payment expiry timer in milliseconds (N 10, C)
+	// For payment flow 1005 only
+	ExpiryTimer string `json:"expiryTimer"`
+
+	// ExpiryDescription is the payment expiry description (C 255, C)
+	// For payment flow 1005 only
 	ExpiryDescription string `json:"expiryDescription"`
-	ExpiryTimer       string `json:"expiryTimer"`
-	RespCode          string `json:"respCode"`
-	RespDesc          string `json:"respDesc"`
-	Type              string `json:"type"`
+
+	// Data is the data of the payment flow (C 5000, C)
+	// 1. URL Endpoint / Deeplink - Required redirect to the endpoint
+	// 2. QR Code - Required display the qr code
+	Data string `json:"data"`
+
+	// FallbackData is for payment flow response code 1004 only (C 255, C)
+	// If user device doesn't have specific native app installed, this fallback allows payment via web
+	FallbackData string `json:"fallbackData"`
+
+	// RespCode is the response code (C 4, M)
+	RespCode string `json:"respCode"`
+
+	// RespDesc is the response description (C 255, M)
+	RespDesc string `json:"respDesc"`
 }
 
 // DoPaymentRequest represents a request to do a QR payment
+// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-do-payment
 type DoPaymentRequest struct {
-	Locale  string `json:"locale"`
+	// PaymentToken is the token from the payment token request (Required)
+	PaymentToken string `json:"paymentToken"`
+
+	// ClientID is a unique identifier for this request (Optional)
+	ClientID string `json:"clientID,omitempty"`
+
+	// Locale is the language code for the response (Optional)
+	Locale string `json:"locale,omitempty"`
+
+	// ResponseReturnUrl is the URL to return to after payment (Required)
+	ResponseReturnUrl string `json:"responseReturnUrl"`
+
+	// Payment contains the payment details
 	Payment struct {
 		Code struct {
 			ChannelCode string `json:"channelCode"`
+			AgentCode   string `json:"agentCode,omitempty"`
 		} `json:"code"`
-		Data map[string]interface{} `json:"data,omitempty"`
+		Data map[string]string `json:"data,omitempty"`
 	} `json:"payment"`
-	PaymentToken      string `json:"paymentToken"`
-	ResponseReturnUrl string `json:"responseReturnUrl"`
+}
+
+// PaymentOptionResponse represents a response from the payment option API
+// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-option-response-parameter
+type PaymentOptionResponse struct {
+	// PaymentToken is the payment token ID (C 255, M)
+	PaymentToken string `json:"paymentToken"`
+
+	// RespCode is the response code (N 4, M)
+	RespCode string `json:"respCode"`
+
+	// RespDesc is the response description (C 255, M)
+	RespDesc string `json:"respDesc"`
 }
 
 // PaymentOptionRequest represents a request to get available payment options
 // Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-option-request-parameter
 type PaymentOptionRequest struct {
-	ClientID     string `json:"clientID,omitempty"`
-	Locale       string `json:"locale,omitempty"`
+	// PaymentToken is the token from the payment token request (Mandatory)
 	PaymentToken string `json:"paymentToken"`
-}
 
-// PaymentOptionResponse represents a response from the payment option API
-type PaymentOptionResponse struct {
-	Payload  string `json:"payload"`
-	RespCode string `json:"respCode"`
-	RespDesc string `json:"respDesc"`
+	// ClientID is a unique identifier for this request (Optional)
+	// This ID will be created when UI SDK init and store in app preference
+	ClientID string `json:"clientID,omitempty"`
+
+	// Locale is the language code for the response (Optional)
+	// Based on ISO 639. If not set, API response will be based on payment token locale
+	// If clientID is set, API response will be based on user preference locale
+	Locale string `json:"locale,omitempty"`
 }
 
 // PaymentOptionDetailsRequest represents a request to get payment option details
 // Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-option-details-request-parameter
 type PaymentOptionDetailsRequest struct {
-	CategoryCode string `json:"categoryCode"`
-	ClientID     string `json:"clientID,omitempty"`
-	GroupCode    string `json:"groupCode"`
-	Locale       string `json:"locale,omitempty"`
+	// PaymentToken is the token from the payment token request (Mandatory)
 	PaymentToken string `json:"paymentToken"`
+
+	// ClientID is a unique identifier for this request (Optional)
+	// This ID will be created when UI SDK init and store in app preference
+	ClientID string `json:"clientID,omitempty"`
+
+	// Locale is the language code for the response (Optional)
+	// Based on ISO 639. If not set, API response will be based on payment token locale
+	// If clientID is set, API response will be based on user preference locale
+	Locale string `json:"locale,omitempty"`
+
+	// CategoryCode is the payment category code (Mandatory, AN 6)
+	// Get from Payment Options API
+	// Only support payment channel which required payment details
+	CategoryCode string `json:"categoryCode"`
+
+	// GroupCode is the payment group code (Mandatory, AN 10)
+	// Get from Payment Options API
+	GroupCode string `json:"groupCode"`
 }
 
 // APIResponse represents a response from the payment option details API
@@ -75,21 +138,41 @@ type APIResponse struct {
 
 // DoPaymentParams represents parameters for creating a new do payment request
 type DoPaymentParams struct {
-	ClientID           string
-	ClientIP           string
-	Locale             string
+	// PaymentToken is the token from the payment token request
+	PaymentToken string
+
+	// PaymentChannelCode is the payment channel code (e.g., SGQR)
 	PaymentChannelCode string
-	PaymentData        map[string]any
-	PaymentToken       string
-	ResponseReturnUrl  string
+
+	// PaymentData contains additional payment data
+	PaymentData map[string]any
+
+	// Locale is the language code for the response
+	Locale string
+
+	// ResponseReturnUrl is the URL to return to after payment
+	ResponseReturnUrl string
+
+	// ClientID is a unique identifier for this request
+	ClientID string
+
+	// ClientIP is the IP address of the client
+	ClientIP string
 }
 
 // CreateQRPaymentParams represents parameters for creating a new QR payment
 type CreateQRPaymentParams struct {
-	ClientIP           string
+	// PaymentToken is the token from the payment token request
+	PaymentToken string
+
+	// PaymentChannelCode is the payment channel code (e.g., SGQR)
 	PaymentChannelCode string
-	PaymentToken       string
-	ResponseReturnUrl  string
+
+	// ResponseReturnUrl is the URL to return to after payment
+	ResponseReturnUrl string
+
+	// ClientIP is the IP address of the client
+	ClientIP string
 }
 
 func (c *Client) newPaymentOptionsRequest(ctx context.Context, paymentToken string) (*http.Request, error) {
@@ -236,7 +319,7 @@ func (c *Client) newDoPaymentRequest(ctx context.Context, params *DoPaymentParam
 }
 
 // CreateQRPayment creates a new QR payment
-func (c *Client) CreateQRPayment(ctx context.Context, params *CreateQRPaymentParams) (*QRPaymentResponse, error) {
+func (c *Client) CreateQRPayment(ctx context.Context, params *CreateQRPaymentParams) (*DoPaymentResponse, error) {
 	doPaymentParams := &DoPaymentParams{
 		PaymentToken:       params.PaymentToken,
 		PaymentChannelCode: params.PaymentChannelCode,
@@ -268,128 +351,10 @@ func (c *Client) CreateQRPayment(ctx context.Context, params *CreateQRPaymentPar
 	}
 
 	// Parse response
-	var doPaymentRespData QRPaymentResponse
+	var doPaymentRespData DoPaymentResponse
 	if err := json.Unmarshal(respBody, &doPaymentRespData); err != nil {
 		return nil, fmt.Errorf("unmarshal do payment response: %w", err)
 	}
 
 	return &doPaymentRespData, nil
-}
-
-func (c *Client) GetQRPayment(req QRPaymentRequest) (*QRPaymentResponse, error) {
-	// Get payment options
-	paymentOptionData := map[string]string{
-		"paymentToken": req.PaymentToken,
-	}
-	paymentOptionJSON, err := json.Marshal(paymentOptionData)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling payment option request: %w", err)
-	}
-
-	token, err := c.generateJWTToken(paymentOptionJSON)
-	if err != nil {
-		return nil, fmt.Errorf("error generating JWT token for payment option: %w", err)
-	}
-
-	paymentOptionReq, err := c.newRequest("POST", c.endpoint("paymentOption"), []byte(`{"payload":"`+token+`"}`))
-	if err != nil {
-		return nil, fmt.Errorf("error creating payment option request: %w", err)
-	}
-
-	resp, err := c.do(paymentOptionReq)
-	if err != nil {
-		return nil, fmt.Errorf("error getting payment options: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var paymentOptionResp struct {
-		Payload string `json:"payload"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&paymentOptionResp); err != nil {
-		return nil, fmt.Errorf("error decoding payment option response: %w", err)
-	}
-
-	// Get payment option details
-	paymentOptionDetailsData := map[string]string{
-		"paymentToken": req.PaymentToken,
-		"categoryCode": "QR",
-		"groupCode":    "SGQR",
-	}
-	paymentOptionDetailsJSON, err := json.Marshal(paymentOptionDetailsData)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling payment option details request: %w", err)
-	}
-
-	token, err = c.generateJWTToken(paymentOptionDetailsJSON)
-	if err != nil {
-		return nil, fmt.Errorf("error generating JWT token for payment option details: %w", err)
-	}
-
-	paymentOptionDetailsReq, err := c.newRequest("POST", c.endpoint("paymentOptionDetails"), []byte(`{"payload":"`+token+`"}`))
-	if err != nil {
-		return nil, fmt.Errorf("error creating payment option details request: %w", err)
-	}
-
-	resp, err = c.do(paymentOptionDetailsReq)
-	if err != nil {
-		return nil, fmt.Errorf("error getting payment option details: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var paymentOptionDetailsResp struct {
-		Payload string `json:"payload"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&paymentOptionDetailsResp); err != nil {
-		return nil, fmt.Errorf("error decoding payment option details response: %w", err)
-	}
-
-	// Create QR payment
-	doPaymentData, err := json.Marshal(map[string]interface{}{
-		"paymentToken":      req.PaymentToken,
-		"responseReturnUrl": req.ReturnURL,
-		"locale":            "en",
-		"payment": map[string]interface{}{
-			"code": map[string]string{
-				"channelCode": "PNQR",
-			},
-			"data": map[string]string{
-				"qrType": "URL",
-			},
-		},
-		"clientID": req.ClientID,
-		"clientIP": req.ClientIP,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling do payment request: %w", err)
-	}
-
-	token, err = c.generateJWTToken(doPaymentData)
-	if err != nil {
-		return nil, fmt.Errorf("error generating JWT token for do payment: %w", err)
-	}
-
-	doPaymentReq, err := c.newRequest("POST", c.endpoint("payment"), []byte(`{"payload":"`+token+`"}`))
-	if err != nil {
-		return nil, fmt.Errorf("error creating do payment request: %w", err)
-	}
-
-	resp, err = c.do(doPaymentReq)
-	if err != nil {
-		return nil, fmt.Errorf("error making payment: %w", err)
-	}
-	defer resp.Body.Close()
-
-	var paymentResp struct {
-		Payload string `json:"payload"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&paymentResp); err != nil {
-		return nil, fmt.Errorf("error decoding payment response: %w", err)
-	}
-
-	var result QRPaymentResponse
-	if err := c.decodeJWTToken(paymentResp.Payload, &result); err != nil {
-		return nil, fmt.Errorf("error decoding JWT token: %w", err)
-	}
-
-	return &result, nil
 }

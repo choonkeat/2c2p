@@ -88,55 +88,183 @@ func (c *Cents) UnmarshalJSON(data []byte) error {
 }
 
 // PaymentTokenRequest represents a request to the Payment Token API
+// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-token-request-parameter
 type PaymentTokenRequest struct {
-	AgentChannel                  []string                     `json:"agentChannel,omitempty"`
-	AllowAccumulate               bool                         `json:"allowAccumulate,omitempty"`
-	AmountCents                   Cents                        `json:"amount"`
-	CAVV                          string                       `json:"cavv,omitempty"`
-	CardTokens                    []string                     `json:"customerToken,omitempty"`
-	ChargeNextDateYYYYMMDD        string                       `json:"chargeNextDate,omitempty"`
-	ChargeOnDateYYYYMMDD          string                       `json:"chargeOnDate,omitempty"`
-	CurrencyCodeISO4217           string                       `json:"currencyCode"`
-	DSTransactionID               string                       `json:"dsTransactionId,omitempty"`
-	Description                   string                       `json:"description"`
-	ECI                           string                       `json:"eci,omitempty"`
-	ExternalSubMerchantID         string                       `json:"externalSubMerchantID,omitempty"`
-	FXRateID                      string                       `json:"fxRateID,omitempty"`
-	FxProviderCode                string                       `json:"fxProviderCode,omitempty"`
-	IdempotencyID                 string                       `json:"idempotencyID,omitempty"`
-	IframeMode                    bool                         `json:"iframeMode,omitempty"`
-	ImmediatePayment              bool                         `json:"immediatePayment,omitempty"`
-	InstallmentBankFilter         []string                     `json:"installmentBankFilter,omitempty"`
-	InstallmentPeriodFilterMonths []int                        `json:"installmentPeriodFilter,omitempty"`
-	InterestType                  PaymentTokenInterestType     `json:"interestType,omitempty"`
-	InvoiceNo                     string                       `json:"invoiceNo"`
-	InvoicePrefix                 string                       `json:"invoicePrefix,omitempty"`
-	LoyaltyPoints                 *LoyaltyPoints               `json:"loyaltyPoints,omitempty"`
-	MaxAccumulateAmount           float64                      `json:"maxAccumulateAmount,omitempty"`
-	MerchantID                    string                       `json:"merchantID"`
-	OriginalAmount                float64                      `json:"originalAmount,omitempty"`
-	PaymentChannel                []PaymentTokenPaymentChannel `json:"paymentChannel,omitempty"`
-	PaymentExpiryYYYYMMDDHHMMSS   string                       `json:"paymentExpiry,omitempty"`
-	PaymentRouteID                string                       `json:"paymentRouteID,omitempty"`
-	ProductCode                   string                       `json:"productCode,omitempty"`
-	PromotionCode                 string                       `json:"promotionCode,omitempty"`
-	ProtocolVersion               string                       `json:"protocolVersion,omitempty"`
-	Recurring                     bool                         `json:"recurring,omitempty"`
-	RecurringAmount               float64                      `json:"recurringAmount,omitempty"`
-	RecurringCount                int                          `json:"recurringCount,omitempty"`
-	RecurringIntervalDays         int                          `json:"recurringInterval,omitempty"`
-	Request3DS                    PaymentTokenRequest3DSType   `json:"request3DS,omitempty"`
-	StatementDescriptor           string                       `json:"statementDescriptor,omitempty"`
-	StoreCredentials              string                       `json:"storeCredentials,omitempty"`
-	SubMerchants                  []PaymentTokenSubMerchant    `json:"subMerchants,omitempty"`
-	Tokenize                      bool                         `json:"tokenize,omitempty"`
-	TokenizeOnly                  bool                         `json:"tokenizeOnly,omitempty"`
-	UIParams                      *paymentTokenUiParams        `json:"uiParams,omitempty"`
-	UserDefined1                  string                       `json:"userDefined1,omitempty"`
-	UserDefined2                  string                       `json:"userDefined2,omitempty"`
-	UserDefined3                  string                       `json:"userDefined3,omitempty"`
-	UserDefined4                  string                       `json:"userDefined4,omitempty"`
-	UserDefined5                  string                       `json:"userDefined5,omitempty"`
+	// MerchantID is the 2C2P merchant ID (required)
+	// Max length: 8 characters
+	MerchantID string `json:"merchantID"`
+
+	// IdempotencyID is a unique value for retrying same requests (optional)
+	// Max length: 100 characters
+	IdempotencyID string `json:"idempotencyID,omitempty"`
+
+	// InvoiceNo is the merchant's invoice number (required)
+	// Max length: 50 characters
+	InvoiceNo string `json:"invoiceNo"`
+
+	// Description is the payment description (required)
+	// Max length: 250 characters
+	Description string `json:"description"`
+
+	// AmountCents is the payment amount (required)
+	// Format: 12 digits with 5 decimal places (e.g., 000000002500.90000)
+	AmountCents Cents `json:"amount"`
+
+	// LoyaltyPoints is the loyalty points (optional)
+	LoyaltyPoints *LoyaltyPoints `json:"loyaltyPoints,omitempty"`
+
+	// CurrencyCodeISO4217 is the payment currency code (ISO 4217) (required)
+	// Length: 3 characters
+	CurrencyCodeISO4217 string `json:"currencyCode"`
+
+	// PaymentChannel is a comma-separated list of payment channels (optional)
+	// Default: "CC"
+	PaymentChannel []PaymentTokenPaymentChannel `json:"paymentChannel,omitempty"`
+
+	// PaymentExpiryYYYYMMDDHHMMSS is the payment expiry date/time (optional)
+	// Format: YYYY-MM-DD HH:mm:ss
+	PaymentExpiryYYYYMMDDHHMMSS string `json:"paymentExpiry,omitempty"`
+
+	// UserDefined1 is a custom field (optional)
+	// Max length: 255 characters
+	UserDefined1 string `json:"userDefined1,omitempty"`
+
+	// UserDefined2 is a custom field (optional)
+	// Max length: 255 characters
+	UserDefined2 string `json:"userDefined2,omitempty"`
+
+	// UserDefined3 is a custom field (optional)
+	// Max length: 255 characters
+	UserDefined3 string `json:"userDefined3,omitempty"`
+
+	// UserDefined4 is a custom field (optional)
+	// Max length: 255 characters
+	UserDefined4 string `json:"userDefined4,omitempty"`
+
+	// UserDefined5 is a custom field (optional)
+	// Max length: 255 characters
+	UserDefined5 string `json:"userDefined5,omitempty"`
+
+	// StatementDescriptor is the dynamic statement description (optional)
+	// Max length: 25 characters
+	StatementDescriptor string `json:"statementDescriptor,omitempty"`
+
+	// CardTokens is a comma-separated list of card tokens (optional)
+	CardTokens []string `json:"cardTokens,omitempty"`
+
+	// Request3DS specifies the 3DS request type (optional)
+	// Values: "Y" (enforce 3DS), "N" (bypass 3DS), "F" (follow rules)
+	// Default: "Y"
+	Request3DS PaymentTokenRequest3DSType `json:"request3DS,omitempty"`
+
+	// ProtocolVersion is the 3DS protocol version (optional)
+	ProtocolVersion string `json:"protocolVersion,omitempty"`
+
+	// ECI is the Electronic Commerce Indicator (optional)
+	ECI string `json:"eci,omitempty"`
+
+	// CAVV is the Cardholder Authentication Verification Value (optional)
+	CAVV string `json:"cavv,omitempty"`
+
+	// DSTransactionID is the Directory Server Transaction ID (optional)
+	DSTransactionID string `json:"dsTransactionID,omitempty"`
+
+	// StoreCredentials specifies whether to store credentials (optional)
+	// Values: "F" (First time), "S" (Subsequent), "N" (No)
+	StoreCredentials string `json:"storeCredentials,omitempty"`
+
+	// Tokenize enables tokenization (optional)
+	Tokenize bool `json:"tokenize,omitempty"`
+
+	// TokenizeOnly only tokenizes without processing payment (optional)
+	TokenizeOnly bool `json:"tokenizeOnly,omitempty"`
+
+	// IframeMode enables iframe mode (optional)
+	IframeMode bool `json:"iframeMode,omitempty"`
+
+	// PaymentRouteID specifies the payment route ID (optional)
+	PaymentRouteID string `json:"paymentRouteID,omitempty"`
+
+	// ProductCode is the product code (optional)
+	ProductCode string `json:"productCode,omitempty"`
+
+	// PromotionCode is the promotion code (optional)
+	PromotionCode string `json:"promotionCode,omitempty"`
+
+	// InstallmentBankFilter is a comma-separated list of installment banks (optional)
+	InstallmentBankFilter []string `json:"installmentBankFilter,omitempty"`
+
+	// InstallmentPeriodFilterMonths is a comma-separated list of installment periods in months (optional)
+	InstallmentPeriodFilterMonths []int `json:"installmentPeriodFilter,omitempty"`
+
+	// InterestType specifies the interest type (optional)
+	// Values: "A" (Advance), "C" (Customer), "M" (Merchant)
+	InterestType PaymentTokenInterestType `json:"interestType,omitempty"`
+
+	// AgentChannel is a comma-separated list of agent channels (optional)
+	AgentChannel []string `json:"agentChannel,omitempty"`
+
+	// FXRateID is the forex rate ID (optional)
+	FXRateID string `json:"fxRateID,omitempty"`
+
+	// FxProviderCode is the forex provider code (optional)
+	FxProviderCode string `json:"fxProviderCode,omitempty"`
+
+	// OriginalAmount is the original currency amount (optional)
+	OriginalAmount float64 `json:"originalAmount,omitempty"`
+
+	// SubMerchantID is the sub-merchant ID (optional)
+	SubMerchantID string `json:"subMerchantID,omitempty"`
+
+	// ExternalSubMerchantID is the external sub-merchant ID (optional)
+	ExternalSubMerchantID string `json:"externalSubMerchantID,omitempty"`
+
+	// SubMerchantInvoiceNo is the sub-merchant invoice number (optional)
+	SubMerchantInvoiceNo string `json:"subMerchantInvoiceNo,omitempty"`
+
+	// SubMerchantDescription is the sub-merchant description (optional)
+	SubMerchantDescription string `json:"subMerchantDescription,omitempty"`
+
+	// SubMerchantAmount is the sub-merchant amount (optional)
+	SubMerchantAmount float64 `json:"subMerchantAmount,omitempty"`
+
+	// Recurring enables recurring payment (optional)
+	Recurring bool `json:"recurring,omitempty"`
+
+	// RecurringAmount is the amount for recurring payments (optional)
+	RecurringAmount float64 `json:"recurringAmount,omitempty"`
+
+	// RecurringCount is the total number of recurring payments (optional)
+	RecurringCount int `json:"recurringCount,omitempty"`
+
+	// RecurringIntervalDays is the interval in days between recurring payments (optional)
+	RecurringIntervalDays int `json:"recurringInterval,omitempty"`
+
+	// ChargeNextDateYYYYMMDD is the next charge date (optional)
+	// Format: YYYYMMDD
+	ChargeNextDateYYYYMMDD string `json:"chargeNextDate,omitempty"`
+
+	// ChargeOnDateYYYYMMDD is the specific charge date (optional)
+	// Format: YYYYMMDD
+	ChargeOnDateYYYYMMDD string `json:"chargeOnDate,omitempty"`
+
+	// AllowAccumulate allows accumulation of recurring payments (optional)
+	AllowAccumulate bool `json:"allowAccumulate,omitempty"`
+
+	// MaxAccumulateAmount is the maximum amount for accumulated payments (optional)
+	MaxAccumulateAmount float64 `json:"maxAccumulateAmount,omitempty"`
+
+	// InvoicePrefix is the invoice prefix for recurring payments (optional)
+	InvoicePrefix string `json:"invoicePrefix,omitempty"`
+
+	// ImmediatePayment triggers payment immediately (optional)
+	ImmediatePayment bool `json:"immediatePayment,omitempty"`
+
+	// SubMerchants is a list of sub-merchants for split payments (optional)
+	SubMerchants []PaymentTokenSubMerchant `json:"subMerchants,omitempty"`
+
+	// UIParams is the UI parameters for payment token requests (optional)
+	UIParams *paymentTokenUiParams `json:"uiParams,omitempty"`
 }
 
 func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRequest) (*http.Request, error) {
@@ -275,7 +403,8 @@ type paymentTokenUserInfo struct {
 	CurrencyCodeISO4217 string `json:"currencyCode"`
 }
 
-// PaymentTokenResponse represents the response from the Payment Token API
+// PaymentTokenResponse represents a response from the Payment Token API
+// Documentation: https://developer.2c2p.com/v4.3.1/docs/api-payment-token-response-parameter
 type PaymentTokenResponse struct {
 	// RespCode is the response code
 	// "0000" indicates success
