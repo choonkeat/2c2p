@@ -280,7 +280,7 @@ func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRe
 	}
 
 	// Generate JWT token
-	token, err := c.generateJWTToken(jsonData)
+	token, err := c.generateJWTTokenForJSON(jsonData)
 	if err != nil {
 		return nil, fmt.Errorf("generate jwt token: %w", err)
 	}
@@ -309,13 +309,13 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 		req.MerchantID = c.MerchantID
 	}
 
-	// Create and make request
+	// Make request
 	httpReq, err := c.newPaymentTokenRequest(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	// Make request with debug info
+	// Make request
 	resp, err := c.do(httpReq)
 	if err != nil {
 		return nil, err
@@ -343,16 +343,15 @@ func (c *Client) PaymentToken(ctx context.Context, req *PaymentTokenRequest) (*P
 
 	// If we got a JWT response, decode it
 	var tokenResp PaymentTokenResponse
-	if err := c.decodeJWTToken(jwtResponse.Payload, &tokenResp); err != nil {
+	if err := c.decodeJWTTokenForJSON(jwtResponse.Payload, &tokenResp); err != nil {
 		return nil, fmt.Errorf("decode jwt token: %w", err)
 	}
 
 	// Check response code
-	if tokenResp.RespCode != Code0000Successful {
-		return &tokenResp, fmt.Errorf("payment token failed: %s (%s)", tokenResp.RespCode, tokenResp.RespDesc)
+	if tokenResp.IsSuccess() {
+		return &tokenResp, nil
 	}
-
-	return &tokenResp, nil
+	return &tokenResp, fmt.Errorf("payment token failed: %s (%s)", tokenResp.RespCode, tokenResp.RespDesc)
 }
 
 // PaymentTokenSubMerchant represents a sub-merchant for split payments

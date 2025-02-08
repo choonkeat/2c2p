@@ -1,0 +1,42 @@
+<PaymentProcessRequest>
+  <version>4.3</version>
+  <timeStamp></timeStamp>
+  <merchantID></merchantID>
+  <processType>R</processType>
+  <invoiceNo></invoiceNo>
+  <actionAmount></actionAmount>
+  <bankCode></bankCode>
+  <accountName></accountName>
+  <accountNumber></accountNumber>
+  <subMerchantList>
+   <subMerchant subMID="" subAmount="">
+    <loyaltyPayments>
+    	<loyaltyRefund>
+            <loyaltyProvider></loyaltyProvider>
+            <externalMerchantId></externalMerchantId>
+            <totalRefundRewardAmount></totalRefundRewardAmount>
+            <refundRewards>
+               <reward>
+                   <type></type>
+                   <quantity></quantity>
+               </reward> 
+           </refundRewards>
+     </loyaltyRefund>
+  	</subMerchant>
+  </subMerchantList>
+  <notifyURL></notifyURL>
+  <idempotencyID></idempotencyID>
+  <loyaltyPayments>
+   <loyaltyRefund>
+            <loyaltyProvider></loyaltyProvider>
+            <externalMerchantId></externalMerchantId>
+            <totalRefundRewardAmount></totalRefundRewardAmount>
+            <refundRewards>
+               <reward>
+                   <type></type>
+                   <quantity></quantity>
+               </reward> 
+           </refundRewards>
+     </loyaltyRefund>
+	</loyaltyPayments>
+</PaymentProcessRequest>

@@ -248,7 +248,7 @@ func (c *Client) newPaymentInquiryRequest(ctx context.Context, merchantID string
 	}
 
 	// Create JWT token
-	token, err := c.generateJWTToken(payloadBytes)
+	token, err := c.generateJWTTokenForJSON(payloadBytes)
 	if err != nil {
 		return nil, fmt.Errorf("error generating JWT token: %v", err)
 	}
@@ -314,7 +314,7 @@ func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryB
 
 	// If we got a JWT response, decode it
 	var inquiryResp PaymentInquiryResponse
-	if err := c.decodeJWTToken(jwtResponse.Payload, &inquiryResp); err != nil {
+	if err := c.decodeJWTTokenForJSON(jwtResponse.Payload, &inquiryResp); err != nil {
 		return nil, fmt.Errorf("decode jwt token: %w", err)
 	}
 
@@ -367,7 +367,7 @@ func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquir
 
 	// If we got a JWT response, decode it
 	var inquiryResp PaymentInquiryResponse
-	if err := c.decodeJWTToken(jwtResponse.Payload, &inquiryResp); err != nil {
+	if err := c.decodeJWTTokenForJSON(jwtResponse.Payload, &inquiryResp); err != nil {
 		return nil, fmt.Errorf("decode jwt token: %w", err)
 	}
 

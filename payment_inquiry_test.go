@@ -103,7 +103,7 @@ func TestPaymentInquiry(t *testing.T) {
 			MerchantID: "JT01",
 			BaseURL:    ts.URL,
 		})
-		token, err := mockClient.generateJWTToken(responseData)
+		token, err := mockClient.generateJWTTokenForJSON(responseData)
 		if err != nil {
 			t.Errorf("Error generating JWT token: %v", err)
 			return
@@ -279,7 +279,7 @@ func TestPaymentInquiryByToken(t *testing.T) {
 			MerchantID: "JT01",
 			BaseURL:    ts.URL,
 		})
-		token, err := mockClient.generateJWTToken(responseData)
+		token, err := mockClient.generateJWTTokenForJSON(responseData)
 		if err != nil {
 			t.Errorf("Error generating JWT token: %v", err)
 			return

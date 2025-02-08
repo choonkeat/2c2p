@@ -29,6 +29,7 @@ Always refer to the official 2C2P API documentation:
 - [Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment)
 - [Flow Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment-flow)
 - [QR Payment API](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment)
+- [Refund API](https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide)
 
 ### API Encryption
 
@@ -52,11 +53,11 @@ The following APIs use encryption to secure sensitive data:
 ### Creating a Client
 
 ```go
-client := api2c2p.NewClient(
-    "your_secret_key",
-    "your_merchant_id",
-    "https://sandbox-pgw.2c2p.com", // or https://pgw.2c2p.com for production
-)
+client := api2c2p.NewClient(api2c2p.Config{
+    SecretKey:  "your_secret_key",
+    MerchantID: "your_merchant_id",
+    BaseURL:    "https://sandbox-pgw.2c2p.com", // or https://pgw.2c2p.com for production
+})
 ```
 
 ### SecureFields Integration
@@ -83,6 +84,31 @@ For implementation details, refer to:
 - Frontend response handling: See `handlePaymentResponse` in `cmd/secure_fields/main.go`
 - Backend notification handling: See `handlePaymentNotification` in `cmd/secure_fields/main.go`
 - Response field definitions: See `PaymentResponseBackEnd` in `payment_response_backend.go`
+
+### Processing a Refund
+
+To refund a settled transaction:
+
+```go
+refundReq := &api2c2p.RefundRequest{
+    InvoiceNo:    "your_invoice_number",
+    ActionAmount: 25.00, // Amount to refund
+}
+
+refundResp, err := client.Refund(context.Background(), refundReq)
+if err != nil {
+    log.Fatalf("Failed to process refund: %v", err)
+}
+
+// Check response
+if refundResp.RespCode == "0000" {
+    fmt.Println("Refund successful")
+} else {
+    fmt.Printf("Refund failed: %s\n", refundResp.RespDesc)
+}
+```
+
+Note: Refunds can only be processed for settled transactions.
 
 ## Code Organization and Implementation Principles
 

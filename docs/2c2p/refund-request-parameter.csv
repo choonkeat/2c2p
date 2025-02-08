@@ -1,0 +1,66 @@
+Parameter,Data Type/ Length,Mandatory,Description,,,
+version,AN 5,M,"Request version number
+
+Current : 4.3",,,
+timeStamp,C 22,O,"Request time stamp
+
+* In ddMMyyHHmmss format",,,
+merchantID,C 15,M,Merchant ID,,,
+childMerchantID,C 15,O,Child Merchant ID,,,
+processType,C 2,M,"Payment process command
+
+* R = Refund",,,
+invoiceNo,C 50,M,Invoice number / order ID,,,
+actionAmount,"D 10,2",M,"Amount
+
+In two-decimal format
+Should
+not exceed original
+transaction amount
+* For partial refunds, the total refund
+amount (previous+current
+refund) should not exceed original transaction amount",,,
+bankCode,C 10,O,"Customer’s bank
+account’s bank code
+
+* Only applicable to APM transaction",,,
+accountName,C 50,O,"Customer’s bank account name
+
+* Only applicable to APM transaction",,,
+accountNumber,C 50,O,"Customer’s bank account number
+
+* Only applicable to APM transaction",,,
+subMerchantList,Array,O,"Only applicable to
+MasterMerchant
+Account",,,
+subMerchant.subMID,C 15,M,Sub Merchant ID,,,
+subMerchant.subAmount,"D 10,2",M,"Refund amount
+
+In 2- decimal format
+The total of all subAmount(s)
+must match the actionAmount",,,
+subMerchant.loyaltyRefund,Array,O,Loyalty info,,,
+subMerchant.loyaltyRefund.loyaltyProvider,AN 20,O,Loyalty points provider id,,,
+subMerchant.loyaltyRefund.externalMerchantId,AN 50,C,External Loyalty Merchant ID,,,
+subMerchant.loyaltyRefund.totalRefundRewardAmount,"D 12,5",O,Total Refund Reward Amount,,,
+subMerchant.loyaltyRefund.refundRewards,Array,O,List of Rewards,,,
+subMerchant.loyaltyRefund.refundRewards.reward.type,C 1,O,"Loyalty Type, ""P"" (POINTS) /""V"" (Voucher)",,,
+subMerchant.loyaltyRefund.refundRewards.reward.quantity,"D 12,5",O,Points quantity,,,
+notifyURL,C 250,O,"URL to notify final refund status
+
+* Uses the same format as ‘PaymentProcessRe
+sponse’",,,
+userDefined1,C 150,O,User defined data,,,
+userDefined2,C 150,O,User defined data,,,
+userDefined3,C 150,O,User defined data,,,
+userDefined4,C 150,O,User defined data,,,
+userDefined5,C 150,O,User defined data,,,
+idempotencyID,C 100,O,A repeated request with the same idempotencyID will return the same response as the original request,,,
+loyaltyPayments,Array,O,List of loyalty.,,,
+loyaltyRefund.loyaltyProvider,AN 20,O,Loyalty refund info,,,
+loyaltyRefund.externalMerchantId,AN 50,C,External Loyalty Merchant ID,,,
+loyaltyRefund.totalRefundRewardAmount,"D 12,5",O,Total Refund Reward Amount,,,
+loyaltyRefund.refundRewards,Array,O,List of Rewards,,,
+loyaltyRefund.refundRewards.reward.type,C 1,O,"Loyalty Type, ""P"" (POINTS) /""V"" (Voucher)",,,
+loyaltyRefund.refundRewards.reward.quantity,"D 12,5",O,Points quantity,,,
+notes,C 150,O,Notes,,,

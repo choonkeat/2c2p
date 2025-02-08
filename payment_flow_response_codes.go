@@ -33,12 +33,12 @@ func (c PaymentFlowResponseCode) Description() string {
 
 // Known response codes
 const (
-	Flow1000LoadRedirectUrlWithIframeWebview PaymentFlowResponseCode = "1000" // Load redirect URL with IFrame / Webview.
-	Flow1001FullRedirectionToWebPage PaymentFlowResponseCode = "1001" // Full redirection to web page
-	Flow10021RedirectToSchemeUrlDeepLinkOrWebUrl PaymentFlowResponseCode = "1002" // 1. Redirect to Scheme URL (deep link) or web URL.  2. Query the transaction status via API.
-	Flow1003GetAndDisplayThePayslipInformationAndWaitingCustomerTo PaymentFlowResponseCode = "1003" // Get and display the payslip information and waiting customer to pay it
-	Flow1004RedirectToExternalAppWithAppSchemeAndBackWith PaymentFlowResponseCode = "1004" // Redirect to external app with app scheme, and back with app call back.
-	Flow10051DisplayGeneratedQrAndWaitForCustomerToScan PaymentFlowResponseCode = "1005" // 1. Display generated QR, and wait for customer to scan / pay it. 2. Query the transaction status via API.
-	Flow2000TransactionCompletedAndMerchantRequireToDisplayPaymentResult PaymentFlowResponseCode = "2000" // Transaction completed and merchant require to display payment result.
+	Flow1000LoadRedirectUrlWithIframeWebview                              PaymentFlowResponseCode = "1000"  // Load redirect URL with IFrame / Webview.
+	Flow1001FullRedirectionToWebPage                                      PaymentFlowResponseCode = "1001"  // Full redirection to web page
+	Flow10021RedirectToSchemeUrlDeepLinkOrWebUrl                          PaymentFlowResponseCode = "1002"  // 1. Redirect to Scheme URL (deep link) or web URL.  2. Query the transaction status via API.
+	Flow1003GetAndDisplayThePayslipInformationAndWaitingCustomerTo        PaymentFlowResponseCode = "1003"  // Get and display the payslip information and waiting customer to pay it
+	Flow1004RedirectToExternalAppWithAppSchemeAndBackWith                 PaymentFlowResponseCode = "1004"  // Redirect to external app with app scheme, and back with app call back.
+	Flow10051DisplayGeneratedQrAndWaitForCustomerToScan                   PaymentFlowResponseCode = "1005"  // 1. Display generated QR, and wait for customer to scan / pay it. 2. Query the transaction status via API.
+	Flow2000TransactionCompletedAndMerchantRequireToDisplayPaymentResult  PaymentFlowResponseCode = "2000"  // Transaction completed and merchant require to display payment result.
 	FlowOtherTransactionFailedOrRejectedPerformPaymentInquiryToGetPayment PaymentFlowResponseCode = "Other" // Transaction failed or rejected, perform payment inquiry to get payment status and full response.
 )

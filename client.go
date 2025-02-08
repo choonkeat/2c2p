@@ -21,14 +21,22 @@ type Client struct {
 
 	// BaseURL is the base URL for API requests
 	BaseURL string
+
+	// PrivateKeyFile is the path to the combined private key and certificate PEM file
+	PrivateKeyFile string
+
+	// ServerPublicKeyFile is the path to the 2C2P's public key certificate (.cer file)
+	ServerPublicKeyFile string
 }
 
 // Config holds the configuration for creating a new 2C2P client
 type Config struct {
-	SecretKey  string
-	MerchantID string
-	HttpClient *http.Client
-	BaseURL    string
+	SecretKey           string
+	MerchantID          string
+	HttpClient          *http.Client
+	BaseURL             string
+	PrivateKeyFile      string
+	ServerPublicKeyFile string
 }
 
 // NewClient creates a new 2C2P API client
@@ -41,10 +49,12 @@ func NewClient(cfg Config) *Client {
 	}
 	loggingClient := NewLoggingClient(cfg.HttpClient, nil, true)
 	return &Client{
-		SecretKey:  cfg.SecretKey,
-		MerchantID: cfg.MerchantID,
-		httpClient: loggingClient,
-		BaseURL:    cfg.BaseURL,
+		SecretKey:           cfg.SecretKey,
+		MerchantID:          cfg.MerchantID,
+		httpClient:          loggingClient,
+		BaseURL:             cfg.BaseURL,
+		PrivateKeyFile:      cfg.PrivateKeyFile,
+		ServerPublicKeyFile: cfg.ServerPublicKeyFile,
 	}
 }
 
@@ -52,7 +62,7 @@ func (c *Client) endpoint(path string) string {
 	return fmt.Sprintf("%s/payment/4.3/%s", c.BaseURL, path)
 }
 
-func (c *Client) generateJWTToken(payload []byte) (string, error) {
+func (c *Client) generateJWTTokenForJSON(payload []byte) (string, error) {
 	var claims map[string]interface{}
 	if err := json.Unmarshal(payload, &claims); err != nil {
 		return "", fmt.Errorf("error unmarshaling payload: %v", err)
@@ -62,7 +72,7 @@ func (c *Client) generateJWTToken(payload []byte) (string, error) {
 	return token.SignedString([]byte(c.SecretKey))
 }
 
-func (c *Client) decodeJWTToken(token string, v interface{}) error {
+func (c *Client) decodeJWTTokenForJSON(token string, v interface{}) error {
 	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -89,7 +99,7 @@ func (c *Client) decodeJWTToken(token string, v interface{}) error {
 func (c *Client) do(req *http.Request) (*http.Response, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		return nil, fmt.Errorf("do request: %w", err)
 	}
 	return resp, nil
 }
