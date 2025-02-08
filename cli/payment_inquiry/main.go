@@ -27,7 +27,7 @@ func main() {
 		SecretKey:  *secretKey,
 		MerchantID: *merchantID,
 	})
-	resp, err := client.PaymentInquiry(context.Background(), &api2c2p.PaymentInquiryRequest{
+	resp, err := client.PaymentInquiryByInvoice(context.Background(), &api2c2p.PaymentInquiryByInvoiceRequest{
 		InvoiceNo: *invoiceNo,
 	})
 	if err != nil {

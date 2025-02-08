@@ -17,19 +17,30 @@ Example Usage:
 	    "https://sandbox-pgw.2c2p.com", // or https://pgw.2c2p.com for production
 	)
 
-	request := &api2c2p.PaymentInquiryRequest{
+	tokenRequest := &api2c2p.PaymentInquiryByTokenRequest{
 	    MerchantID:   "your_merchant_id",
-	    InvoiceNo:    "your_invoice_number",  // Either InvoiceNo or PaymentToken is required
-	    PaymentToken: "payment_token",        // Optional, alternative to InvoiceNo
-	    Locale:       "en",                   // Optional
+	    PaymentToken: "payment_token",
+	    Locale:       "en", // Optional
 	}
 
-	response, err := client.PaymentInquiry(ctx, request)
+	invoiceRequest := &api2c2p.PaymentInquiryByInvoiceRequest{
+	    MerchantID: "your_merchant_id",
+	    InvoiceNo:  "your_invoice_number",
+	    Locale:     "en", // Optional
+	}
+
+	tokenResponse, err := client.PaymentInquiryByToken(ctx, tokenRequest)
 	if err != nil {
 	    log.Fatalf("Error: %v", err)
 	}
 
-	fmt.Printf("Payment status: %s - %s\n", response.RespCode, response.RespDesc)
+	invoiceResponse, err := client.PaymentInquiryByInvoice(ctx, invoiceRequest)
+	if err != nil {
+	    log.Fatalf("Error: %v", err)
+	}
+
+	fmt.Printf("Payment status by token: %s - %s\n", tokenResponse.RespCode, tokenResponse.RespDesc)
+	fmt.Printf("Payment status by invoice: %s - %s\n", invoiceResponse.RespCode, invoiceResponse.RespDesc)
 */
 package api2c2p
 
@@ -42,12 +53,18 @@ import (
 	"net/http"
 )
 
-// PaymentInquiryRequest represents the request payload for payment inquiry
-type PaymentInquiryRequest struct {
+// PaymentInquiryByTokenRequest represents the request payload for payment inquiry by payment token
+type PaymentInquiryByTokenRequest struct {
 	MerchantID   string `json:"merchantID"`
-	PaymentToken string `json:"paymentToken,omitempty"` // Either paymentToken or invoiceNo must be present
-	InvoiceNo    string `json:"invoiceNo,omitempty"`    // Either paymentToken or invoiceNo must be present
-	Locale       string `json:"locale,omitempty"`       // Based on ISO 639 codes
+	PaymentToken string `json:"paymentToken"` // Required
+	Locale       string `json:"locale,omitempty"`
+}
+
+// PaymentInquiryByInvoiceRequest represents the request payload for payment inquiry by invoice number
+type PaymentInquiryByInvoiceRequest struct {
+	MerchantID string `json:"merchantID"`
+	InvoiceNo  string `json:"invoiceNo"` // Required
+	Locale     string `json:"locale,omitempty"`
 }
 
 // PaymentInquiryResponse represents the decoded response from payment inquiry
@@ -102,14 +119,11 @@ type PaymentInquiryResponse struct {
 	IdempotencyID                 string  `json:"idempotencyID"`                 // C 100, O
 }
 
-func (c *Client) newPaymentInquiryRequest(ctx context.Context, req *PaymentInquiryRequest) (*http.Request, error) {
+func (c *Client) newPaymentInquiryRequest(ctx context.Context, merchantID string, payload interface{}) (*http.Request, error) {
 	url := c.endpoint("paymentInquiry")
-	if req.MerchantID == "" {
-		req.MerchantID = c.MerchantID
-	}
 
 	// Convert request to JSON
-	jsonData, err := json.Marshal(req)
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
@@ -139,10 +153,71 @@ func (c *Client) newPaymentInquiryRequest(ctx context.Context, req *PaymentInqui
 	return httpReq, nil
 }
 
-// PaymentInquiry checks the status of a payment by invoice number
-func (c *Client) PaymentInquiry(ctx context.Context, req *PaymentInquiryRequest) (*PaymentInquiryResponse, error) {
-	// Create and make request
-	httpReq, err := c.newPaymentInquiryRequest(ctx, req)
+// PaymentInquiryByToken checks the status of a payment using a payment token
+func (c *Client) PaymentInquiryByToken(ctx context.Context, req *PaymentInquiryByTokenRequest) (*PaymentInquiryResponse, error) {
+	if req.PaymentToken == "" {
+		return nil, fmt.Errorf("payment token is required")
+	}
+	if req.MerchantID == "" {
+		req.MerchantID = c.MerchantID
+	}
+
+	httpReq, err := c.newPaymentInquiryRequest(ctx, req.MerchantID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Make request with debug info
+	resp, debug, err := c.doRequestWithDebug(httpReq)
+	if err != nil {
+		return nil, c.formatErrorWithDebug(fmt.Errorf("do request: %w", err), debug)
+	}
+	defer resp.Body.Close()
+	log.Printf("Payment inquiry response body: %s", debug.Response.Body)
+
+	// Try to decode response
+	var jwtResponse struct {
+		Payload string `json:"payload"`
+	}
+	if err := json.Unmarshal([]byte(debug.Response.Body), &jwtResponse); err != nil || jwtResponse.Payload == "" {
+		// Try decoding as direct response
+		var response struct {
+			RespCode string `json:"respCode"`
+			RespDesc string `json:"respDesc"`
+		}
+		if err := json.Unmarshal([]byte(debug.Response.Body), &response); err != nil {
+			return nil, c.formatErrorWithDebug(fmt.Errorf("decode response: %w", err), debug)
+		}
+		return &PaymentInquiryResponse{
+			RespCode: response.RespCode,
+			RespDesc: response.RespDesc,
+		}, nil
+	}
+
+	// If we got a JWT response, decode it
+	var inquiryResp PaymentInquiryResponse
+	if err := c.decodeJWTToken(jwtResponse.Payload, &inquiryResp); err != nil {
+		return nil, c.formatErrorWithDebug(fmt.Errorf("decode jwt token: %w", err), debug)
+	}
+
+	// Check response code
+	switch inquiryResp.RespCode {
+	case "0000", "0001", "1005", "2001":
+		return &inquiryResp, nil
+	}
+	return &inquiryResp, c.formatErrorWithDebug(fmt.Errorf("payment inquiry failed: %s (%s)", inquiryResp.RespCode, inquiryResp.RespDesc), debug)
+}
+
+// PaymentInquiryByInvoice checks the status of a payment using an invoice number
+func (c *Client) PaymentInquiryByInvoice(ctx context.Context, req *PaymentInquiryByInvoiceRequest) (*PaymentInquiryResponse, error) {
+	if req.InvoiceNo == "" {
+		return nil, fmt.Errorf("invoice number is required")
+	}
+	if req.MerchantID == "" {
+		req.MerchantID = c.MerchantID
+	}
+
+	httpReq, err := c.newPaymentInquiryRequest(ctx, req.MerchantID, req)
 	if err != nil {
 		return nil, err
 	}

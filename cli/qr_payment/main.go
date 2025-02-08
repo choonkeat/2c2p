@@ -205,7 +205,7 @@ func main() {
 		}
 
 		// Query payment status
-		status, err := client.PaymentInquiry(r.Context(), &api2c2p.PaymentInquiryRequest{
+		status, err := client.PaymentInquiryByToken(r.Context(), &api2c2p.PaymentInquiryByTokenRequest{
 			PaymentToken: token,
 			Locale:       "en",
 		})
