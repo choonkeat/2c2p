@@ -206,8 +206,8 @@ func main() {
 
 		// Query payment status
 		status, err := client.PaymentInquiry(r.Context(), &api2c2p.PaymentInquiryRequest{
-			InvoiceNo: token,
-			Locale:    "en",
+			PaymentToken: token,
+			Locale:       "en",
 		})
 		log.Printf("Payment status: %#v, %s", status, err)
 		if err != nil {
