@@ -20,7 +20,6 @@ var (
 	serverURL = flag.String("serverURL", "http://localhost:8080", "Your server URL prefix (e.g., https://your-domain.com)")
 
 	// 2C2P configuration
-	sandbox        = flag.Bool("sandbox", true, "Use sandbox environment")
 	merchantID     = flag.String("merchantID", "", "2C2P Merchant ID")
 	secretKey      = flag.String("secretKey", "", "2C2P Secret Key")
 	c2cpURL        = flag.String("c2cpURL", "https://demo2.2c2p.com", "2C2P server URL")

@@ -18,3 +18,6 @@ docs-view:
 
 gofmt:
 	gofmt -w .
+
+show-unused:
+	golangci-lint run --enable=unused --fix

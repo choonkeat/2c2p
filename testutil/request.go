@@ -124,12 +124,3 @@ func decodeJWTPayload(payload string) ([]byte, error) {
 
 	return decoded, nil
 }
-
-func mustMarshalJSON(t *testing.T, v any) string {
-	t.Helper()
-	data, err := json.Marshal(v)
-	if err != nil {
-		t.Fatalf("Failed to marshal JSON: %v", err)
-	}
-	return string(data)
-}

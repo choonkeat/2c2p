@@ -1,7 +1,6 @@
 package api2c2p
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -93,14 +92,4 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("request failed: %w", err)
 	}
 	return resp, nil
-}
-
-func (c *Client) newRequest(method, path string, body []byte) (*http.Request, error) {
-	fullURL := c.endpoint(path)
-	req, err := http.NewRequest(method, fullURL, bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	return req, nil
 }

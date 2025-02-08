@@ -197,35 +197,6 @@ func (c *Client) newPaymentOptionsRequest(ctx context.Context, paymentToken stri
 	return req, nil
 }
 
-// getPaymentOptions calls the payment option API to get available payment options
-func (c *Client) getPaymentOptions(ctx context.Context, paymentToken string) (*PaymentOptionResponse, error) {
-	req, err := c.newPaymentOptionsRequest(ctx, paymentToken)
-	if err != nil {
-		return nil, err
-	}
-
-	// Call payment option API
-	resp, err := c.do(req)
-	if err != nil {
-		return nil, fmt.Errorf("payment option request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Read payment option response
-	paymentOptionRespBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading payment option response: %v", err)
-	}
-
-	// Parse payment option response
-	var paymentOptionRespData PaymentOptionResponse
-	if err := json.Unmarshal(paymentOptionRespBody, &paymentOptionRespData); err != nil {
-		return nil, fmt.Errorf("decode payment option response: %w", err)
-	}
-
-	return &paymentOptionRespData, nil
-}
-
 func (c *Client) newPaymentOptionDetailsRequest(ctx context.Context, paymentToken string) (*http.Request, error) {
 	paymentOptionDetailsURL := c.endpoint("paymentOptionDetails")
 
@@ -247,35 +218,6 @@ func (c *Client) newPaymentOptionDetailsRequest(ctx context.Context, paymentToke
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return req, nil
-}
-
-// getPaymentOptionDetails calls the payment option details API to get specific payment option details
-func (c *Client) getPaymentOptionDetails(ctx context.Context, paymentToken string) (*APIResponse, error) {
-	req, err := c.newPaymentOptionDetailsRequest(ctx, paymentToken)
-	if err != nil {
-		return nil, err
-	}
-
-	// Call payment option details API
-	resp, err := c.do(req)
-	if err != nil {
-		return nil, fmt.Errorf("payment option details request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Read payment option details response
-	paymentOptionDetailsRespBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading payment option details response: %v", err)
-	}
-
-	// Parse payment option details response
-	var paymentOptionDetailsRespData APIResponse
-	if err := json.Unmarshal(paymentOptionDetailsRespBody, &paymentOptionDetailsRespData); err != nil {
-		return nil, fmt.Errorf("decode payment option details response: %w", err)
-	}
-
-	return &paymentOptionDetailsRespData, nil
 }
 
 func (c *Client) newDoPaymentRequest(ctx context.Context, params *DoPaymentParams) (*http.Request, error) {
