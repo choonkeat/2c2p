@@ -157,9 +157,10 @@ func TestPaymentTokenRequest_SignatureString_Simple(t *testing.T) {
 
 func TestNewPaymentTokenRequest(t *testing.T) {
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    "https://example.com",
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: "https://pgw.example.com",
+		FrontendURL:       "https://frontend.example.com",
 	})
 	req := &PaymentTokenRequest{
 		MerchantID:          "JT01",
@@ -186,7 +187,7 @@ func TestNewPaymentTokenRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/paymentToken",
+		URL:         "https://pgw.example.com/payment/4.3/paymentToken",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"merchantID":     "JT01",

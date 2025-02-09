@@ -263,7 +263,7 @@ func (c *Client) newPaymentInquiryRequest(ctx context.Context, merchantID string
 	}
 
 	// Create request with context
-	req, err := http.NewRequestWithContext(ctx, "POST", c.endpoint("paymentInquiry"), bytes.NewReader(requestBytes))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.paymentGatewayEndpoint("paymentInquiry"), bytes.NewReader(requestBytes))
 	if err != nil {
 		return nil, fmt.Errorf("create payment inquiry request: %w", err)
 	}

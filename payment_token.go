@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 )
 
 // PaymentTokenRequest3DSType represents the 3DS request type
@@ -47,44 +46,6 @@ const (
 
 type LoyaltyPoints struct {
 	RedeemAmount float64 `json:"redeemAmount"`
-}
-
-type Cents int64
-
-func (c Cents) XMLString() string {
-	return fmt.Sprintf("%012d", c)
-}
-
-// Format: 12 digits with 5 decimal places (e.g., 000000002500.90000)
-func (c Cents) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf("\"%012d.%02d000\"", c/100, c%100)), nil
-}
-
-// Decodes "000000000012.34000" into 1234
-func (c *Cents) UnmarshalJSON(data []byte) error {
-	var s string
-	if err := json.Unmarshal(data, &s); err != nil {
-		return err
-	}
-
-	// Split by decimal point
-	split := bytes.SplitN([]byte(s), []byte("."), 2)
-	if len(split) != 2 {
-		return fmt.Errorf("invalid format")
-	}
-	// Parse first part
-	val, err := strconv.ParseInt(string(split[0]), 10, 64)
-	if err != nil {
-		return err
-	}
-	// Parse second part
-	val2, err := strconv.ParseInt(string(split[1]), 10, 64)
-	if err != nil {
-		return err
-	}
-	val = val*100 + (val2 / 1000)
-	*c = Cents(val)
-	return nil
 }
 
 // PaymentTokenRequest represents a request to the Payment Token API
@@ -268,7 +229,7 @@ type PaymentTokenRequest struct {
 }
 
 func (c *Client) newPaymentTokenRequest(ctx context.Context, req *PaymentTokenRequest) (*http.Request, error) {
-	url := c.endpoint("paymentToken")
+	url := c.paymentGatewayEndpoint("paymentToken")
 	if req.MerchantID == "" {
 		req.MerchantID = c.MerchantID
 	}

@@ -176,7 +176,7 @@ type CreateQRPaymentParams struct {
 }
 
 func (c *Client) newPaymentOptionsRequest(ctx context.Context, paymentToken string) (*http.Request, error) {
-	paymentOptionURL := c.endpoint("paymentOption")
+	paymentOptionURL := c.paymentGatewayEndpoint("paymentOption")
 
 	// Prepare payment option payload
 	paymentOptionPayload := &PaymentOptionRequest{
@@ -198,7 +198,7 @@ func (c *Client) newPaymentOptionsRequest(ctx context.Context, paymentToken stri
 }
 
 func (c *Client) newPaymentOptionDetailsRequest(ctx context.Context, paymentToken string) (*http.Request, error) {
-	paymentOptionDetailsURL := c.endpoint("paymentOptionDetails")
+	paymentOptionDetailsURL := c.paymentGatewayEndpoint("paymentOptionDetails")
 
 	// Prepare payment option details payload
 	paymentOptionDetailsPayload := &PaymentOptionDetailsRequest{
@@ -221,7 +221,7 @@ func (c *Client) newPaymentOptionDetailsRequest(ctx context.Context, paymentToke
 }
 
 func (c *Client) newDoPaymentRequest(ctx context.Context, params *DoPaymentParams) (*http.Request, error) {
-	doPaymentURL := c.endpoint("payment")
+	doPaymentURL := c.paymentGatewayEndpoint("payment")
 
 	// Prepare do payment payload using map for easier iteration
 	doPaymentPayload := map[string]any{

@@ -151,46 +151,46 @@ func SecureFieldsFormHTML(merchantID, secretKey, formAction string, sandbox bool
 func createSignatureString(apiVersion, timestamp, merchantID, invoiceNo string, details SecureFieldsPaymentDetails, encryptedCardInfo string) string {
 	// Construct signature string with all fields in the same order as PHP
 	return fmt.Sprintf("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
-		apiVersion,                      // version
-		timestamp,                       // timestamp
-		merchantID,                      // merchantID
-		invoiceNo,                       // uniqueTransactionCode
-		details.Description,             // desc
-		details.AmountCents.XMLString(), // amt
-		details.CurrencyCode,            // currencyCode
-		"",                              // paymentChannel
-		"",                              // storeCardUniqueID
-		"",                              // panBank
-		details.CountryCode,             // country
-		details.CustomerName,            // cardholderName
-		"",                              // cardholderEmail
-		"",                              // payCategoryID
-		details.UserDefined1,            // userDefined1
-		details.UserDefined2,            // userDefined2
-		details.UserDefined3,            // userDefined3
-		details.UserDefined4,            // userDefined4
-		details.UserDefined5,            // userDefined5
-		details.StoreCard,               // storeCard
-		"",                              // ippTransaction
-		"",                              // installmentPeriod
-		"",                              // interestType
-		"",                              // recurring
-		"",                              // invoicePrefix
-		"",                              // recurringAmount
-		"",                              // allowAccumulate
-		"",                              // maxAccumulateAmt
-		"",                              // recurringInterval
-		"",                              // recurringCount
-		"",                              // chargeNextDate
-		"",                              // promotion
-		"Y",                             // request3DS
-		"",                              // statementDescriptor
-		"",                              // agentCode
-		"",                              // channelCode
-		"",                              // paymentExpiry
-		"",                              // mobileNo
-		"",                              // tokenizeWithoutAuthorization
-		encryptedCardInfo,               // encryptedCardInfo
+		apiVersion,          // version
+		timestamp,           // timestamp
+		merchantID,          // merchantID
+		invoiceNo,           // uniqueTransactionCode
+		details.Description, // desc
+		details.AmountCents.ZeroPrefixed12DCents(), // amt
+		details.CurrencyCode,                       // currencyCode
+		"",                                         // paymentChannel
+		"",                                         // storeCardUniqueID
+		"",                                         // panBank
+		details.CountryCode,                        // country
+		details.CustomerName,                       // cardholderName
+		"",                                         // cardholderEmail
+		"",                                         // payCategoryID
+		details.UserDefined1,                       // userDefined1
+		details.UserDefined2,                       // userDefined2
+		details.UserDefined3,                       // userDefined3
+		details.UserDefined4,                       // userDefined4
+		details.UserDefined5,                       // userDefined5
+		details.StoreCard,                          // storeCard
+		"",                                         // ippTransaction
+		"",                                         // installmentPeriod
+		"",                                         // interestType
+		"",                                         // recurring
+		"",                                         // invoicePrefix
+		"",                                         // recurringAmount
+		"",                                         // allowAccumulate
+		"",                                         // maxAccumulateAmt
+		"",                                         // recurringInterval
+		"",                                         // recurringCount
+		"",                                         // chargeNextDate
+		"",                                         // promotion
+		"Y",                                        // request3DS
+		"",                                         // statementDescriptor
+		"",                                         // agentCode
+		"",                                         // channelCode
+		"",                                         // paymentExpiry
+		"",                                         // mobileNo
+		"",                                         // tokenizeWithoutAuthorization
+		encryptedCardInfo,                          // encryptedCardInfo
 	)
 }
 
@@ -267,7 +267,7 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		MerchantID:            merchantID,
 		UniqueTransactionCode: invoiceNo,
 		Description:           paymentDetails.Description,
-		Amount:                paymentDetails.AmountCents.XMLString(),
+		Amount:                paymentDetails.AmountCents.ZeroPrefixed12DCents(),
 		CurrencyCode:          paymentDetails.CurrencyCode,
 		PanCountry:            paymentDetails.CountryCode,
 		CardholderName:        paymentDetails.CustomerName,

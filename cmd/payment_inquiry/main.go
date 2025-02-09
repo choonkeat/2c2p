@@ -12,10 +12,12 @@ import (
 
 func main() {
 	var (
-		merchantID   = flag.String("merchantID", "", "2C2P merchant ID")
-		secretKey    = flag.String("secretKey", "", "Secret Key")
-		invoiceNo    = flag.String("invoiceNo", "", "Invoice number to query")
-		paymentToken = flag.String("paymentToken", "", "Payment token to query")
+		merchantID        = flag.String("merchantID", "", "2C2P merchant ID")
+		secretKey         = flag.String("secretKey", "", "Secret Key")
+		invoiceNo         = flag.String("invoiceNo", "", "Invoice number to query")
+		paymentToken      = flag.String("paymentToken", "", "Payment token to query")
+		paymentGatewayURL = flag.String("paymentGatewayURL", "https://sandbox-pgw.2c2p.com", "2C2P Payment Gateway URL")
+		frontendURL       = flag.String("frontendURL", "https://demo2.2c2p.com", "2C2P Frontend URL")
 	)
 	flag.Parse()
 
@@ -36,8 +38,10 @@ func main() {
 	}
 
 	client := api2c2p.NewClient(api2c2p.Config{
-		SecretKey:  *secretKey,
-		MerchantID: *merchantID,
+		SecretKey:         *secretKey,
+		MerchantID:        *merchantID,
+		PaymentGatewayURL: *paymentGatewayURL,
+		FrontendURL:       *frontendURL,
 	})
 	var resp interface{}
 	var err error

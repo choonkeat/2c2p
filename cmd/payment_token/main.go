@@ -14,6 +14,8 @@ func main() {
 	var (
 		secretKey           = flag.String("secretKey", "", "Merchant's secret key")
 		merchantID          = flag.String("merchantID", "", "Merchant ID")
+		paymentGatewayURL   = flag.String("paymentGatewayURL", "https://sandbox-pgw.2c2p.com", "2C2P Payment Gateway URL")
+		frontendURL         = flag.String("frontendURL", "https://demo2.2c2p.com", "2C2P Frontend URL")
 		amountCents         = flag.Int64("amountCents", 0, "Payment amount in cents")
 		invoiceNo           = flag.String("invoiceNo", "", "Invoice number")
 		description         = flag.String("description", "", "Payment description")
@@ -73,8 +75,10 @@ func main() {
 	}
 
 	client := api2c2p.NewClient(api2c2p.Config{
-		SecretKey:  *secretKey,
-		MerchantID: *merchantID,
+		SecretKey:         *secretKey,
+		MerchantID:        *merchantID,
+		PaymentGatewayURL: *paymentGatewayURL,
+		FrontendURL:       *frontendURL,
 	})
 
 	// Convert payment channels

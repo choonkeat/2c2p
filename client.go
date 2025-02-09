@@ -19,8 +19,13 @@ type Client struct {
 	// httpClient is the HTTP client used for making requests
 	httpClient *LoggingClient
 
-	// BaseURL is the base URL for API requests
-	BaseURL string
+	// PaymentGatewayURL is the base URL for payment gateway API requests (e.g. payment inquiry)
+	// Default: https://sandbox-pgw.2c2p.com
+	PaymentGatewayURL string
+
+	// FrontendURL is the base URL for frontend-related API requests (e.g. secure fields, refunds)
+	// Default: https://demo2.2c2p.com
+	FrontendURL string
 
 	// PrivateKeyFile is the path to the combined private key and certificate PEM file
 	PrivateKeyFile string
@@ -34,15 +39,19 @@ type Config struct {
 	SecretKey           string
 	MerchantID          string
 	HttpClient          *http.Client
-	BaseURL             string
+	PaymentGatewayURL   string // URL for payment gateway APIs
+	FrontendURL         string // URL for frontend-related APIs
 	PrivateKeyFile      string
 	ServerPublicKeyFile string
 }
 
 // NewClient creates a new 2C2P API client
 func NewClient(cfg Config) *Client {
-	if cfg.BaseURL == "" {
-		cfg.BaseURL = "https://sandbox-pgw.2c2p.com"
+	if cfg.PaymentGatewayURL == "" {
+		cfg.PaymentGatewayURL = "https://sandbox-pgw.2c2p.com"
+	}
+	if cfg.FrontendURL == "" {
+		cfg.FrontendURL = "https://demo2.2c2p.com"
 	}
 	if cfg.HttpClient == nil {
 		cfg.HttpClient = &http.Client{}
@@ -52,14 +61,19 @@ func NewClient(cfg Config) *Client {
 		SecretKey:           cfg.SecretKey,
 		MerchantID:          cfg.MerchantID,
 		httpClient:          loggingClient,
-		BaseURL:             cfg.BaseURL,
+		PaymentGatewayURL:   cfg.PaymentGatewayURL,
+		FrontendURL:         cfg.FrontendURL,
 		PrivateKeyFile:      cfg.PrivateKeyFile,
 		ServerPublicKeyFile: cfg.ServerPublicKeyFile,
 	}
 }
 
-func (c *Client) endpoint(path string) string {
-	return fmt.Sprintf("%s/payment/4.3/%s", c.BaseURL, path)
+func (c *Client) paymentGatewayEndpoint(path string) string {
+	return fmt.Sprintf("%s/payment/4.3/%s", c.PaymentGatewayURL, path)
+}
+
+func (c *Client) frontendEndpoint(path string) string {
+	return fmt.Sprintf("%s/%s", c.FrontendURL, path)
 }
 
 func (c *Client) generateJWTTokenForJSON(payload []byte) (string, error) {

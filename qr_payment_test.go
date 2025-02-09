@@ -8,9 +8,10 @@ import (
 
 func TestNewPaymentOptionsRequest(t *testing.T) {
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    "https://example.com",
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: "https://pgw.example.com",
+		FrontendURL:       "https://frontend.example.com",
 	})
 	paymentToken := "test_payment_token"
 
@@ -29,7 +30,7 @@ func TestNewPaymentOptionsRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/paymentOption",
+		URL:         "https://pgw.example.com/payment/4.3/paymentOption",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"paymentToken": "test_payment_token",
@@ -39,9 +40,10 @@ func TestNewPaymentOptionsRequest(t *testing.T) {
 
 func TestNewPaymentOptionDetailsRequest(t *testing.T) {
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    "https://example.com",
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: "https://pgw.example.com",
+		FrontendURL:       "https://frontend.example.com",
 	})
 	paymentToken := "test_payment_token"
 
@@ -60,7 +62,7 @@ func TestNewPaymentOptionDetailsRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/paymentOptionDetails",
+		URL:         "https://pgw.example.com/payment/4.3/paymentOptionDetails",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"paymentToken": "test_payment_token",
@@ -72,9 +74,10 @@ func TestNewPaymentOptionDetailsRequest(t *testing.T) {
 
 func TestNewDoPaymentRequest(t *testing.T) {
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    "https://example.com",
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: "https://pgw.example.com",
+		FrontendURL:       "https://frontend.example.com",
 	})
 
 	params := &DoPaymentParams{
@@ -102,7 +105,7 @@ func TestNewDoPaymentRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/payment",
+		URL:         "https://pgw.example.com/payment/4.3/payment",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"paymentToken":      "test_payment_token",
@@ -145,7 +148,7 @@ func TestNewDoPaymentRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/payment",
+		URL:         "https://pgw.example.com/payment/4.3/payment",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"paymentToken":      "test_payment_token",

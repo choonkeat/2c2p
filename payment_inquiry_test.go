@@ -99,9 +99,10 @@ func TestPaymentInquiry(t *testing.T) {
 
 		// Create JWT token from response data
 		mockClient := NewClient(Config{
-			SecretKey:  "your_secret_key",
-			MerchantID: "JT01",
-			BaseURL:    ts.URL,
+			SecretKey:         "your_secret_key",
+			MerchantID:        "JT01",
+			PaymentGatewayURL: ts.URL,
+			FrontendURL:       "https://frontend.example.com",
 		})
 		token, err := mockClient.generateJWTTokenForJSON(responseData)
 		if err != nil {
@@ -119,9 +120,10 @@ func TestPaymentInquiry(t *testing.T) {
 
 	// Create client with test server URL
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    ts.URL,
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: ts.URL,
+		FrontendURL:       "https://frontend.example.com",
 	})
 
 	// Make request
@@ -150,9 +152,10 @@ func TestPaymentInquiry(t *testing.T) {
 
 func TestNewPaymentInquiryRequest(t *testing.T) {
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    "https://example.com",
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: "https://pgw.example.com",
+		FrontendURL:       "https://frontend.example.com",
 	})
 	req := &PaymentInquiryByInvoiceRequest{
 		MerchantID: "JT01",
@@ -175,7 +178,7 @@ func TestNewPaymentInquiryRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/paymentInquiry",
+		URL:         "https://pgw.example.com/payment/4.3/paymentInquiry",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"merchantID": "JT01",
@@ -275,9 +278,10 @@ func TestPaymentInquiryByToken(t *testing.T) {
 
 		// Create JWT token from response data
 		mockClient := NewClient(Config{
-			SecretKey:  "your_secret_key",
-			MerchantID: "JT01",
-			BaseURL:    ts.URL,
+			SecretKey:         "your_secret_key",
+			MerchantID:        "JT01",
+			PaymentGatewayURL: ts.URL,
+			FrontendURL:       "https://frontend.example.com",
 		})
 		token, err := mockClient.generateJWTTokenForJSON(responseData)
 		if err != nil {
@@ -295,9 +299,10 @@ func TestPaymentInquiryByToken(t *testing.T) {
 
 	// Create client with test server URL
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    ts.URL,
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: ts.URL,
+		FrontendURL:       "https://frontend.example.com",
 	})
 
 	// Make request
@@ -326,9 +331,10 @@ func TestPaymentInquiryByToken(t *testing.T) {
 
 func TestNewPaymentInquiryByTokenRequest(t *testing.T) {
 	client := NewClient(Config{
-		SecretKey:  "your_secret_key",
-		MerchantID: "JT01",
-		BaseURL:    "https://example.com",
+		SecretKey:         "your_secret_key",
+		MerchantID:        "JT01",
+		PaymentGatewayURL: "https://pgw.example.com",
+		FrontendURL:       "https://frontend.example.com",
 	})
 	req := &PaymentInquiryByTokenRequest{
 		MerchantID:   "JT01",
@@ -351,7 +357,7 @@ func TestNewPaymentInquiryByTokenRequest(t *testing.T) {
 		Body        any
 	}{
 		Method:      "POST",
-		URL:         "https://example.com/payment/4.3/paymentInquiry",
+		URL:         "https://pgw.example.com/payment/4.3/paymentInquiry",
 		ContentType: "application/json",
 		Body: map[string]any{
 			"merchantID":   "JT01",

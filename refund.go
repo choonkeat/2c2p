@@ -24,7 +24,7 @@ type PaymentProcessRequest struct {
 	MerchantID      string   `xml:"merchantID"`
 	InvoiceNo       string   `xml:"invoiceNo"`
 	ChildMerchantID *string  `xml:"childMerchantID,omitempty"`
-	ActionAmount    string   `xml:"actionAmount"`
+	ActionAmount    Dollars  `xml:"actionAmount"`
 	ProcessType     string   `xml:"processType"`
 	BankCode        *string  `xml:"bankCode,omitempty"`
 	AccountName     *string  `xml:"accountName,omitempty"`
@@ -114,14 +114,14 @@ func (s StringClaims) GetSubject() (string, error) {
 }
 
 // Refund processes a refund request for a previously successful payment
-func (c *Client) Refund(ctx context.Context, invoiceNo string, amount float64) (*RefundResponse, error) {
+func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*RefundResponse, error) {
 	// Create refund request
 	req := &PaymentProcessRequest{
 		Version:      "4.3",
 		TimeStamp:    nil, // No timestamp as requested
 		MerchantID:   c.MerchantID,
 		InvoiceNo:    invoiceNo,
-		ActionAmount: fmt.Sprintf("%.2f", amount),
+		ActionAmount: amount.ToDollars(),
 		ProcessType:  "R",
 	}
 
@@ -185,7 +185,7 @@ func (c *Client) NewRefundRequest(ctx context.Context, req *PaymentProcessReques
 
 	// Create request
 	// target URL is correct according to documentation at https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", "https://demo2.2c2p.com/2C2PFrontend/PaymentAction/2.0/action", strings.NewReader(signedToken))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.frontendEndpoint("2C2PFrontend/PaymentAction/2.0/action"), strings.NewReader(signedToken))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -228,7 +228,7 @@ func (c *Client) encryptWithJWE(data []byte) (string, error) {
 			Key:       cert.PublicKey,
 		},
 		// this option means to include `"typ": "JWE"` in header
-		// but sample request in https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-status-guide
+		// but sample request in https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide
 		// only has { "alg": "RSA-OAEP", "enc": "A256GCM" } without `"typ"`
 		(&jose.EncrypterOptions{}).WithType("JWE"),
 	)

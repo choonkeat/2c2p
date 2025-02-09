@@ -18,7 +18,8 @@ func TestNewRefundRequest(t *testing.T) {
 	client := NewClient(Config{
 		SecretKey:           "test_secret",
 		MerchantID:          "JT01",
-		BaseURL:             "https://demo2.2c2p.com/2C2PFrontend",
+		PaymentGatewayURL:   "https://pgw.example.com",
+		FrontendURL:         "https://frontend.example.com",
 		PrivateKeyFile:      "testdata/combined_private_public.pem",
 		ServerPublicKeyFile: "testdata/server.public_cert.pem",
 	})
@@ -28,7 +29,7 @@ func TestNewRefundRequest(t *testing.T) {
 		Version:      "4.3",
 		MerchantID:   client.MerchantID,
 		InvoiceNo:    "260121085327",
-		ActionAmount: "25.00",
+		ActionAmount: Cents(2500).ToDollars(),
 		ProcessType:  "R",
 	}
 
@@ -62,7 +63,7 @@ func TestNewRefundRequest(t *testing.T) {
 	}
 
 	// Create request
-	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", "https://demo2.2c2p.com/2C2PFrontend/PaymentAction/2.0/action", strings.NewReader(signedToken))
+	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", "https://frontend.example.com/PaymentAction/2.0/action", strings.NewReader(signedToken))
 	if err != nil {
 		t.Fatalf("Failed to create request: %v", err)
 	}
@@ -180,7 +181,8 @@ func TestRefund(t *testing.T) {
 	client := NewClient(Config{
 		SecretKey:           "test_secret",
 		MerchantID:          "JT01",
-		BaseURL:             "https://demo2.2c2p.com/2C2PFrontend",
+		PaymentGatewayURL:   "https://pgw.example.com",
+		FrontendURL:         "https://frontend.example.com",
 		PrivateKeyFile:      "testdata/combined_private_public.pem",
 		ServerPublicKeyFile: "testdata/server.public_cert.pem",
 	})
