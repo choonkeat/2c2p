@@ -20,45 +20,49 @@ go get github.com/choonkeat/2c2p
 
 ## API Documentation
 
-Always refer to the official 2C2P API documentation:
-- [API Documentation Portal](https://developer.2c2p.com/docs)
-- [Payment Token API](https://developer.2c2p.com/v4.3.1/docs/api-payment-token)
-- [Payment Inquiry API](https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry)
-- [Using SecureFields](https://developer.2c2p.com/v4.3.1/docs/using-securefields)
-- [Payment Response Parameters](https://developer.2c2p.com/v4.3.1/docs/api-payment-response-back-end-parameter)
-- [Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment)
-- [Flow Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment-flow)
-- [QR Payment API](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment)
-- [Refund API](https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide)
+The following links point to additional official 2C2P API documentation:
 
-### API Encryption
+| Documentation |
+|--------------|
+| [API Documentation Portal](https://developer.2c2p.com/docs) |
+| [Payment Response Parameters](https://developer.2c2p.com/v4.3.1/docs/api-payment-response-back-end-parameter) |
+| [Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment) |
+| [Flow Response Codes](https://developer.2c2p.com/v4.3.1/docs/response-code-payment-flow) |
 
-The following APIs use encryption to secure sensitive data:
+### API Integration Details
 
-1. **SecureFields API**
-   - Backend responses are encrypted using PKCS7
-   - Responses are decrypted using the merchant's private key
-   - Card data is transmitted in encrypted format
+Each 2C2P API has different integration requirements. The following table summarizes the endpoint types, execution context, data formats, and required keys for each API:
 
-2. **JWT-based APIs**
-   - Payment Token API: Request payload is signed using JWT
-   - Payment Inquiry API: Request payload is signed using JWT
-   - Tokens are generated using the merchant's secret key
+| API | Endpoint | Execution Context | Data Format | Key Requirements |
+|-----|----------|------------------|-------------|------------------|
+| [SecureFields](https://developer.2c2p.com/v4.3.1/docs/using-securefields) | Frontend | Browser JavaScript | PKCS7 | Our Private Key |
+| [Payment Token](https://developer.2c2p.com/v4.3.1/docs/api-payment-token) | Gateway | Server-to-Server | JWT with JSON payload | Secret Key |
+| [Payment Inquiry](https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry) | Gateway | Server-to-Server | JWT with JSON payload | Secret Key |
+| [QR Payment](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment) | Gateway | Server-to-Server | JSON | Secret Key |
+| [Refund](https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide) | Frontend | Server-to-Server | JWS containing JWE-encrypted XML | Our Private Key + 2C2P Public Cert |
 
-3. **Standard HTTPS APIs**
-   - QR Payment API uses standard HTTPS without additional encryption layers
+### Keys and Configuration
 
-## Usage
+#### Key Management
 
-### Creating a Client
+1. **Our Private Key**
+   - Generated using `cmd/server-to-server-key/main.go`
+   - Output is saved to `./dist/combined_private_public.pem`
+   - After generating, upload the corresponding public key (`./dist/public_cert.pem`) to 2C2P portal under Options > Server-to-server API
 
-```go
-client := api2c2p.NewClient(api2c2p.Config{
-    SecretKey:  "your_secret_key",
-    MerchantID: "your_merchant_id",
-    BaseURL:    "https://sandbox-pgw.2c2p.com", // or https://pgw.2c2p.com for production
-})
-```
+2. **Secret Key**
+   - Obtained from 2C2P portal: Options > Current Merchant SHA Key (Secret Key)
+   - Used for JWT signing in various APIs
+
+3. **2C2P Public Certificate**
+   - Downloaded from 2C2P portal: Options > 2C2P public keys > JWE
+   - Required for Refund API encryption
+
+#### Local Development Notes
+- Backend return URLs must be publicly accessible
+- Use tools like ngrok to expose local endpoints
+- Disable proxy services like Cloudflare WARP that may interfere with webhooks
+- Update portal configuration when ngrok URL changes
 
 ### SecureFields Integration
 
@@ -72,8 +76,13 @@ go run cmd/server-to-server-key/main.go
 2. Configure 2C2P merchant portal:
    - Go to Options > Server-to-server API
    - Upload the generated `dist/public_cert.pem` as your Public key
-   - Set Frontend return URL to `$serverURL/payment-return`
-   - Set Backend return URL to `$serverURL/payment-notify`
+   - Configure return URLs:
+     - Frontend return URL: `$serverURL/payment-return` (payment completion page)
+     - Backend return URL: `$serverURL/payment-notify` (webhook for notifications)
+   - For local development:
+     - Use ngrok to get a public URL: `ngrok http 8080`
+     - Update return URLs with the ngrok URL
+     - Disable any interfering proxies (e.g., Cloudflare WARP)
 
 3. Start the SecureFields server:
 ```bash
@@ -84,6 +93,21 @@ For implementation details, refer to:
 - Frontend response handling: See `handlePaymentResponse` in `cmd/secure_fields/main.go`
 - Backend notification handling: See `handlePaymentNotification` in `cmd/secure_fields/main.go`
 - Response field definitions: See `PaymentResponseBackEnd` in `payment_response_backend.go`
+
+## Usage
+
+### Creating a Client
+
+```go
+client := api2c2p.NewClient(api2c2p.Config{
+    SecretKey:           "your_secret_key",
+    MerchantID:          "your_merchant_id",
+    PaymentGatewayURL:   "https://sandbox-pgw.2c2p.com",    // or https://pgw.2c2p.com for production
+    FrontendURL:         "https://demo2.2c2p.com",          // or https://t.2c2p.com for production
+    PrivateKeyFile:      "dist/combined_private_public.pem", // generated by cmd/server-to-server-key/main.go
+    ServerPublicKeyFile: "dist/sandbox-jwt-2c2p.demo.2.1(public).cer", // downloaded from 2C2P portal
+})
+```
 
 ### Processing a Refund
 
