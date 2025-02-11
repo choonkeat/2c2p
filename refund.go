@@ -1,12 +1,15 @@
 package api2c2p
 
 import (
+	"bytes"
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"encoding/xml"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -76,37 +79,6 @@ type RefundResponse struct {
 	TransactionRef string   `xml:"transactionRef,omitempty"`
 }
 
-// StringClaims implements jwt.Claims interface to allow using raw string as JWT payload
-type StringClaims string
-
-func (s StringClaims) Valid() error {
-	return nil
-}
-
-func (s StringClaims) GetAudience() (jwt.ClaimStrings, error) {
-	return nil, nil
-}
-
-func (s StringClaims) GetExpirationTime() (*jwt.NumericDate, error) {
-	return nil, nil
-}
-
-func (s StringClaims) GetIssuedAt() (*jwt.NumericDate, error) {
-	return nil, nil
-}
-
-func (s StringClaims) GetIssuer() (string, error) {
-	return "", nil
-}
-
-func (s StringClaims) GetNotBefore() (*jwt.NumericDate, error) {
-	return nil, nil
-}
-
-func (s StringClaims) GetSubject() (string, error) {
-	return "", nil
-}
-
 // Refund processes a refund request for a previously successful payment
 func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*RefundResponse, error) {
 	// Create refund request
@@ -143,12 +115,75 @@ func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*R
 	defer resp.Body.Close()
 
 	// Parse response
+	publicKey, err := c.serverPublicKey()
+	if err != nil {
+		return nil, fmt.Errorf("read server public key file: %#v: %w", c.ServerPublicKeyFile, err)
+	}
+	privateKey, _, err := c.loadPrivateKeyAndCert()
+	if err != nil {
+		return nil, fmt.Errorf("load private key and cert: %w", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+	decrypted, err := verifyAndDecryptJWSJWE(string(body), publicKey, privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("verify and decrypt JWS JWE: %w", err)
+	}
+
 	var refundResp RefundResponse
-	if err := xml.NewDecoder(resp.Body).Decode(&refundResp); err != nil {
+	if err := xml.NewDecoder(bytes.NewReader(decrypted)).Decode(&refundResp); err != nil {
 		return nil, fmt.Errorf("decode response: %w", err)
 	}
 
 	return &refundResp, nil
+}
+
+func jwsWithRawPayload(privateKey *rsa.PrivateKey, token *jwt.Token, payload []byte) (string, error) {
+	h, err := json.Marshal(token.Header)
+	if err != nil {
+		return "", err
+	}
+
+	sstr := token.EncodeSegment(h) + "." + token.EncodeSegment(payload)
+
+	sig, err := token.Method.Sign(sstr, privateKey)
+	if err != nil {
+		return "", err
+	}
+
+	return sstr + "." + token.EncodeSegment(sig), nil
+}
+
+// verifyAndDecryptJWSJWE verifies a JWS token using the public key and decrypts the JWE payload using the private key.
+// The input string should be a JWS token containing a JWE payload.
+func verifyAndDecryptJWSJWE(input string, publicKey any, privateKey any) ([]byte, error) {
+	// Parse and verify JWS
+	jws, err := jose.ParseSigned(input, []jose.SignatureAlgorithm{jose.PS256})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWS: %w", err)
+	}
+
+	// Verify JWS signature and get payload
+	jweTokenBytes, err := jws.Verify(publicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify JWS signature: %w", err)
+	}
+
+	// Parse JWE token
+	object, err := jose.ParseEncrypted(string(jweTokenBytes), []jose.KeyAlgorithm{jose.RSA_OAEP}, []jose.ContentEncryption{jose.A256GCM})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse JWE token: %w", err)
+	}
+
+	// Decrypt JWE token
+	decrypted, err := object.Decrypt(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt JWE token: %w", err)
+	}
+
+	return decrypted, nil
 }
 
 // NewRefundRequest creates a new HTTP request for refunding a payment
@@ -164,16 +199,13 @@ func (c *Client) NewRefundRequest(ctx context.Context, req *PaymentProcessReques
 	if err != nil {
 		return nil, fmt.Errorf("encrypt token: %w", err)
 	}
+	log.Printf("jweToken: %s", jweToken)
 
 	// Then sign with JWS PS256
 	// https://developer.2c2p.com/v4.3.1/recipes/prepare-request-payload-with-jwt-jws-with-keys
 	// https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide
-	token := jwt.NewWithClaims(jwt.SigningMethodPS256, StringClaims(jweToken))
-	//
-	// but normally payload is a json not a raw string like documentation suggests
-	// token := jwt.NewWithClaims(jwt.SigningMethodPS256, jwt.MapClaims{
-	//         "somekey": jweToken,
-	// })
+	token := jwt.New(jwt.SigningMethodPS256)
+	token.Header["kid"] = "choonkeat-dist-public-cert"
 
 	// Load private key for signing
 	privateKey, _, err := c.loadPrivateKeyAndCert()
@@ -182,46 +214,46 @@ func (c *Client) NewRefundRequest(ctx context.Context, req *PaymentProcessReques
 	}
 
 	// Sign the token
-	signedToken, err := token.SignedString(privateKey)
+	signedToken, err := jwsWithRawPayload(privateKey, token, []byte(jweToken))
 	if err != nil {
-		return nil, fmt.Errorf("sign token: %w", err)
+		return nil, fmt.Errorf("jwsWithRawPayload: %w", err)
 	}
 
 	// Create request
-	// target URL is correct according to documentation at https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.frontendEndpoint("2C2PFrontend/PaymentAction/2.0/action"), strings.NewReader(signedToken))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
 	// Set headers
-	// https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide
-	// says Content-Type: text/plain
 	httpReq.Header.Set("Content-Type", "text/plain")
-
-	// https://developer.2c2p.com/v4.3.1/recipes/prepare-request-payload-with-jwt-jws-with-keys
-	// says otherwise
-	// httpReq.Header.Set("Content-Type", "application/*+json")
-	// httpReq.Header.Set("Accept", "text/plain")
-
 	return httpReq, nil
+}
+
+func (c *Client) serverPublicKey() (*rsa.PublicKey, error) {
+	// Read and parse 2C2P's public key certificate
+	certPEM, err := os.ReadFile(c.ServerPublicKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("read server public key file: %#v: %w", c.ServerPublicKeyFile, err)
+	}
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode server public key PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse server certificate: %w", err)
+	}
+	return cert.PublicKey.(*rsa.PublicKey), nil
 }
 
 func (c *Client) encryptWithJWE(data []byte) (string, error) {
 	log.Printf("[DEBUG] Encrypting with %s", c.ServerPublicKeyFile)
 
 	// Read and parse 2C2P's public key certificate
-	certPEM, err := os.ReadFile(c.ServerPublicKeyFile)
+	publicKey, err := c.serverPublicKey()
 	if err != nil {
 		return "", fmt.Errorf("read server public key file: %#v: %w", c.ServerPublicKeyFile, err)
-	}
-	block, _ := pem.Decode(certPEM)
-	if block == nil {
-		return "", fmt.Errorf("failed to decode server public key PEM")
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return "", fmt.Errorf("parse server certificate: %w", err)
 	}
 
 	// Create encrypter
@@ -229,7 +261,7 @@ func (c *Client) encryptWithJWE(data []byte) (string, error) {
 		jose.A256GCM,
 		jose.Recipient{
 			Algorithm: jose.RSA_OAEP,
-			Key:       cert.PublicKey,
+			Key:       publicKey,
 		},
 		// this option means to include `"typ": "JWE"` in header
 		// but sample request in https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide

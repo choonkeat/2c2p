@@ -3,15 +3,14 @@ package api2c2p
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
-	"encoding/json"
-	"encoding/xml"
+	"encoding/pem"
 	"io"
 	"net/http"
-	"strings"
+	"os"
 	"testing"
 
-	"github.com/golang-jwt/jwt/v5"
+	"crypto/x509"
+	"encoding/xml"
 )
 
 func TestNewRefundRequest(t *testing.T) {
@@ -23,53 +22,18 @@ func TestNewRefundRequest(t *testing.T) {
 		PrivateKeyFile:      "testdata/combined_private_public.pem",
 		ServerPublicKeyFile: "testdata/server.public_cert.pem",
 	})
+	serverCombinedPrivatePublicKeyFile := "testdata/server.combined_private_public.pem"
 
-	// Create refund request
-	req := &PaymentProcessRequest{
+	httpReq, err := client.NewRefundRequest(context.Background(), &PaymentProcessRequest{
 		Version:      "4.3",
-		MerchantID:   client.MerchantID,
+		MerchantID:   "JT01",
 		InvoiceNo:    "260121085327",
 		ActionAmount: Cents(2500).ToDollars(),
 		ProcessType:  "R",
-	}
-
-	// Convert request to XML
-	xmlData, err := xml.MarshalIndent(req, "", "  ")
-	if err != nil {
-		t.Fatalf("Failed to marshal request: %v", err)
-	}
-
-	// First encrypt with JWE
-	jweToken, err := client.encryptWithJWE(xmlData)
-	if err != nil {
-		t.Fatalf("Failed to encrypt token: %v", err)
-	}
-
-	// Then sign with JWS PS256
-	token := jwt.NewWithClaims(jwt.SigningMethodPS256, jwt.MapClaims{
-		"request": jweToken,
 	})
-
-	// Load private key for signing
-	privateKey, _, err := client.loadPrivateKeyAndCert()
 	if err != nil {
-		t.Fatalf("Failed to load private key: %v", err)
+		t.Fatalf("Failed to create refund request: %v", err)
 	}
-
-	// Sign the token
-	signedToken, err := token.SignedString(privateKey)
-	if err != nil {
-		t.Fatalf("Failed to sign token: %v", err)
-	}
-
-	// Create request
-	httpReq, err := http.NewRequestWithContext(context.Background(), "POST", "https://frontend.example.com/PaymentAction/2.0/action", strings.NewReader(signedToken))
-	if err != nil {
-		t.Fatalf("Failed to create request: %v", err)
-	}
-
-	// Set headers
-	httpReq.Header.Set("Content-Type", "text/plain")
 
 	// Read request body
 	body, err := io.ReadAll(httpReq.Body)
@@ -80,85 +44,68 @@ func TestNewRefundRequest(t *testing.T) {
 	// Re-create request body for subsequent reads
 	httpReq.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	// Split JWS token into parts
-	parts := strings.Split(string(body), ".")
-	if len(parts) != 3 {
-		t.Fatalf("Invalid JWS token format: expected 3 parts (header.payload.signature), got %d parts", len(parts))
+	// Load public key for JWS verification
+	publicKeyPEM, err := os.ReadFile("testdata/public_cert.pem")
+	if err != nil {
+		t.Fatalf("Failed to read public key file: %v", err)
+	}
+	block, _ := pem.Decode(publicKeyPEM)
+	if block == nil {
+		t.Fatalf("Failed to decode public key PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate: %v", err)
 	}
 
-	// Verify JWS header
-	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	// Load private key for JWE decryption
+	serverKeyData, err := os.ReadFile(serverCombinedPrivatePublicKeyFile)
 	if err != nil {
-		t.Fatalf("Failed to decode JWS header: %v", err)
+		t.Fatalf("Failed to read server key file: %v", err)
 	}
-	var header struct {
-		Alg string `json:"alg"`
-		Typ string `json:"typ"`
+	block, _ = pem.Decode(serverKeyData)
+	if block == nil {
+		t.Fatalf("Failed to decode server key PEM")
 	}
-	if err := json.Unmarshal(headerBytes, &header); err != nil {
-		t.Fatalf("Failed to unmarshal JWS header: %v", err)
-	}
-	if header.Alg != "PS256" {
-		t.Errorf("Expected alg PS256, got %s", header.Alg)
-	}
-	if header.Typ != "JWT" {
-		t.Errorf("Expected typ JWT, got %s", header.Typ)
+	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse private key: %v", err)
 	}
 
-	// Verify JWS payload
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	// Verify JWS and decrypt JWE
+	decrypted, err := verifyAndDecryptJWSJWE(string(body), cert.PublicKey, privateKey)
 	if err != nil {
-		t.Fatalf("Failed to decode JWS payload: %v", err)
+		t.Fatalf("Failed to verify and decrypt: %v", err)
 	}
+
+	// Parse XML payload
 	var payload struct {
-		Request string `json:"request"`
+		XMLName      xml.Name `xml:"PaymentProcessRequest"`
+		Version      string   `xml:"version"`
+		MerchantID   string   `xml:"merchantID"`
+		InvoiceNo    string   `xml:"invoiceNo"`
+		ActionAmount string   `xml:"actionAmount"`
+		ProcessType  string   `xml:"processType"`
 	}
-	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
-		t.Fatalf("Failed to unmarshal JWS payload: %v", err)
-	}
-
-	// Split JWE token into parts
-	jweParts := strings.Split(payload.Request, ".")
-	if len(jweParts) != 5 {
-		t.Fatalf("Invalid JWE token format: expected 5 parts (header.key.iv.ciphertext.tag), got %d parts", len(jweParts))
-	}
-
-	// Verify JWE header
-	jweHeaderBytes, err := base64.RawURLEncoding.DecodeString(jweParts[0])
-	if err != nil {
-		t.Fatalf("Failed to decode JWE header: %v", err)
-	}
-	var jweHeader struct {
-		Alg string `json:"alg"`
-		Enc string `json:"enc"`
-		Typ string `json:"typ"`
-	}
-	if err := json.Unmarshal(jweHeaderBytes, &jweHeader); err != nil {
-		t.Fatalf("Failed to unmarshal JWE header: %v", err)
-	}
-	if jweHeader.Alg != "RSA-OAEP" {
-		t.Errorf("Expected alg RSA-OAEP, got %s", jweHeader.Alg)
-	}
-	if jweHeader.Enc != "A256GCM" {
-		t.Errorf("Expected enc A256GCM, got %s", jweHeader.Enc)
-	}
-	if jweHeader.Typ != "JWE" {
-		t.Errorf("Expected typ JWE, got %s", jweHeader.Typ)
+	if err := xml.Unmarshal(decrypted, &payload); err != nil {
+		t.Fatalf("Failed to unmarshal decrypted payload: %v", err)
 	}
 
-	// Note: We can't decrypt the JWE token in the test because we don't have access to the private key
-	// Instead, we'll verify that the other components are present and base64url encoded
-	if _, err := base64.RawURLEncoding.DecodeString(jweParts[1]); err != nil {
-		t.Errorf("Invalid encrypted key encoding: %v", err)
+	// Verify payload values
+	if payload.Version != "4.3" {
+		t.Errorf("Expected version 4.3, got %s", payload.Version)
 	}
-	if _, err := base64.RawURLEncoding.DecodeString(jweParts[2]); err != nil {
-		t.Errorf("Invalid IV encoding: %v", err)
+	if payload.MerchantID != "JT01" {
+		t.Errorf("Expected merchantID JT01, got %s", payload.MerchantID)
 	}
-	if _, err := base64.RawURLEncoding.DecodeString(jweParts[3]); err != nil {
-		t.Errorf("Invalid ciphertext encoding: %v", err)
+	if payload.InvoiceNo != "260121085327" {
+		t.Errorf("Expected invoiceNo 260121085327, got %s", payload.InvoiceNo)
 	}
-	if _, err := base64.RawURLEncoding.DecodeString(jweParts[4]); err != nil {
-		t.Errorf("Invalid authentication tag encoding: %v", err)
+	if payload.ActionAmount != "25.00" {
+		t.Errorf("Expected actionAmount 25.00, got %s", payload.ActionAmount)
+	}
+	if payload.ProcessType != "R" {
+		t.Errorf("Expected processType R, got %s", payload.ProcessType)
 	}
 }
 
