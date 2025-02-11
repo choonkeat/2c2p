@@ -3,27 +3,27 @@ package api2c2p
 import (
 	"bytes"
 	"context"
-	"encoding/pem"
 	"io"
+	"log"
 	"net/http"
-	"os"
 	"testing"
 
-	"crypto/x509"
 	"encoding/xml"
 )
 
 func TestNewRefundRequest(t *testing.T) {
-	client := NewClient(Config{
-		SecretKey:           "test_secret",
-		MerchantID:          "JT01",
-		PaymentGatewayURL:   "https://pgw.example.com",
-		FrontendURL:         "https://frontend.example.com",
-		PrivateKeyFile:      "testdata/combined_private_public.pem",
-		ServerPublicKeyFile: "testdata/server.public_cert.pem",
+	client, err := NewClient(Config{
+		SecretKey:                "test_secret",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
-	serverCombinedPrivatePublicKeyFile := "testdata/server.combined_private_public.pem"
-
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 	httpReq, err := client.NewRefundRequest(context.Background(), &PaymentProcessRequest{
 		Version:      "4.3",
 		MerchantID:   "JT01",
@@ -44,36 +44,8 @@ func TestNewRefundRequest(t *testing.T) {
 	// Re-create request body for subsequent reads
 	httpReq.Body = io.NopCloser(bytes.NewBuffer(body))
 
-	// Load public key for JWS verification
-	publicKeyPEM, err := os.ReadFile("testdata/public_cert.pem")
-	if err != nil {
-		t.Fatalf("Failed to read public key file: %v", err)
-	}
-	block, _ := pem.Decode(publicKeyPEM)
-	if block == nil {
-		t.Fatalf("Failed to decode public key PEM")
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		t.Fatalf("Failed to parse certificate: %v", err)
-	}
-
-	// Load private key for JWE decryption
-	serverKeyData, err := os.ReadFile(serverCombinedPrivatePublicKeyFile)
-	if err != nil {
-		t.Fatalf("Failed to read server key file: %v", err)
-	}
-	block, _ = pem.Decode(serverKeyData)
-	if block == nil {
-		t.Fatalf("Failed to decode server key PEM")
-	}
-	privateKey, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-	if err != nil {
-		t.Fatalf("Failed to parse private key: %v", err)
-	}
-
 	// Verify JWS and decrypt JWE
-	decrypted, err := verifyAndDecryptJWSJWE(string(body), cert.PublicKey, privateKey)
+	decrypted, err := client.verifyJWSAndDecryptJWE(string(body))
 	if err != nil {
 		t.Fatalf("Failed to verify and decrypt: %v", err)
 	}
@@ -125,18 +97,21 @@ func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func TestRefund(t *testing.T) {
-	client := NewClient(Config{
-		SecretKey:           "test_secret",
-		MerchantID:          "JT01",
-		PaymentGatewayURL:   "https://pgw.example.com",
-		FrontendURL:         "https://frontend.example.com",
-		PrivateKeyFile:      "testdata/combined_private_public.pem",
-		ServerPublicKeyFile: "testdata/server.public_cert.pem",
+	client, err := NewClient(Config{
+		SecretKey:                "test_secret",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
+		ServerPKCS7PublicKeyFile: "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
 	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 
 	// Mock successful response
-	mockResp := `<?xml version="1.0" encoding="UTF-8"?>
-	<PaymentProcessResponse>
+	mockResp := `<PaymentProcessResponse>
 		<version>4.3</version>
 		<timeStamp>2021-01-26 08:53:27</timeStamp>
 		<merchantID>JT01</merchantID>
@@ -150,10 +125,15 @@ func TestRefund(t *testing.T) {
 		<transactionID>T123</transactionID>
 		<transactionRef>TREF123</transactionRef>
 	</PaymentProcessResponse>`
+	signedJWE, err := client.encryptJWEAndSignJWS([]byte(mockResp))
+	if err != nil {
+		t.Fatalf("Failed to encrypt response: %v", err)
+	}
+	log.Printf("Signed token: %s", signedJWE)
 
 	mockClient := &http.Client{
 		Transport: &mockRoundTripper{
-			response: []byte(mockResp),
+			response: []byte(signedJWE),
 		},
 	}
 	client.httpClient = NewLoggingClient(mockClient, nil, false)

@@ -97,28 +97,24 @@ func main() {
 	}
 
 	if len(paymentCodes) == 0 {
-		fmt.Fprintf(os.Stderr, "No response codes found in CSV\n")
-		os.Exit(1)
+		log.Fatal("No response codes found in CSV")
 	}
 
 	// Generate Go code
 	tmpl, err := template.New("codes").Funcs(template.FuncMap{"toConstName": func(desc string, code string) string { return toConstName(desc, code) }}).Parse(outputTemplate)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing template: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error parsing template: %v", err)
 	}
 
 	outputPath := "payment_response_codes.go"
 	f, err := os.Create(outputPath)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating output file: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error creating output file: %v", err)
 	}
 	defer f.Close()
 
 	if err := tmpl.Execute(f, paymentCodes); err != nil {
-		fmt.Fprintf(os.Stderr, "Error executing template: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error executing template: %v", err)
 	}
 
 	fmt.Printf("Generated %s with %d response codes\n", outputPath, len(paymentCodes))

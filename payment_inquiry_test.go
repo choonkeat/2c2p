@@ -98,12 +98,18 @@ func TestPaymentInquiry(t *testing.T) {
 		}
 
 		// Create JWT token from response data
-		mockClient := NewClient(Config{
-			SecretKey:         "your_secret_key",
-			MerchantID:        "JT01",
-			PaymentGatewayURL: ts.URL,
-			FrontendURL:       "https://frontend.example.com",
+		mockClient, err := NewClient(Config{
+			SecretKey:                "your_secret_key",
+			MerchantID:               "JT01",
+			PaymentGatewayURL:        ts.URL,
+			FrontendURL:              "https://frontend.example.com",
+			CombinedPEM:              "testdata/combined_private_public.pem",
+			ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+			ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 		})
+		if err != nil {
+			t.Fatalf("Failed to create client: %v", err)
+		}
 		token, err := mockClient.generateJWTTokenForJSON(responseData)
 		if err != nil {
 			t.Errorf("Error generating JWT token: %v", err)
@@ -119,12 +125,18 @@ func TestPaymentInquiry(t *testing.T) {
 	defer ts.Close()
 
 	// Create client with test server URL
-	client := NewClient(Config{
-		SecretKey:         "your_secret_key",
-		MerchantID:        "JT01",
-		PaymentGatewayURL: ts.URL,
-		FrontendURL:       "https://frontend.example.com",
+	client, err := NewClient(Config{
+		SecretKey:                "your_secret_key",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        ts.URL,
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 
 	// Make request
 	response, err := client.PaymentInquiryByInvoice(ctx, request)
@@ -151,12 +163,18 @@ func TestPaymentInquiry(t *testing.T) {
 }
 
 func TestNewPaymentInquiryRequest(t *testing.T) {
-	client := NewClient(Config{
-		SecretKey:         "your_secret_key",
-		MerchantID:        "JT01",
-		PaymentGatewayURL: "https://pgw.example.com",
-		FrontendURL:       "https://frontend.example.com",
+	client, err := NewClient(Config{
+		SecretKey:                "test_secret",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 	req := &PaymentInquiryByInvoiceRequest{
 		MerchantID: "JT01",
 		InvoiceNo:  "254b77aabc",
@@ -277,12 +295,18 @@ func TestPaymentInquiryByToken(t *testing.T) {
 		}
 
 		// Create JWT token from response data
-		mockClient := NewClient(Config{
-			SecretKey:         "your_secret_key",
-			MerchantID:        "JT01",
-			PaymentGatewayURL: ts.URL,
-			FrontendURL:       "https://frontend.example.com",
+		mockClient, err := NewClient(Config{
+			SecretKey:                "your_secret_key",
+			MerchantID:               "JT01",
+			PaymentGatewayURL:        ts.URL,
+			FrontendURL:              "https://frontend.example.com",
+			CombinedPEM:              "testdata/combined_private_public.pem",
+			ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+			ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 		})
+		if err != nil {
+			t.Fatalf("Failed to create client: %v", err)
+		}
 		token, err := mockClient.generateJWTTokenForJSON(responseData)
 		if err != nil {
 			t.Errorf("Error generating JWT token: %v", err)
@@ -298,12 +322,18 @@ func TestPaymentInquiryByToken(t *testing.T) {
 	defer ts.Close()
 
 	// Create client with test server URL
-	client := NewClient(Config{
-		SecretKey:         "your_secret_key",
-		MerchantID:        "JT01",
-		PaymentGatewayURL: ts.URL,
-		FrontendURL:       "https://frontend.example.com",
+	client, err := NewClient(Config{
+		SecretKey:                "your_secret_key",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        ts.URL,
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 
 	// Make request
 	response, err := client.PaymentInquiryByToken(ctx, request)
@@ -330,12 +360,18 @@ func TestPaymentInquiryByToken(t *testing.T) {
 }
 
 func TestNewPaymentInquiryByTokenRequest(t *testing.T) {
-	client := NewClient(Config{
-		SecretKey:         "your_secret_key",
-		MerchantID:        "JT01",
-		PaymentGatewayURL: "https://pgw.example.com",
-		FrontendURL:       "https://frontend.example.com",
+	client, err := NewClient(Config{
+		SecretKey:                "test_secret",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 	req := &PaymentInquiryByTokenRequest{
 		MerchantID:   "JT01",
 		PaymentToken: "payment_token_123",

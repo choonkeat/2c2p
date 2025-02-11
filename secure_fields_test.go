@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"encoding/xml"
 	"fmt"
 	"os"
@@ -26,10 +25,17 @@ import (
 // If a test fails because the expected XML needs to be updated, the test will
 // write the actual decrypted result to the .xml file, making it pass on the next run.
 func TestDecryptPaymentResponse(t *testing.T) {
-	// Read private key from testdata
-	privateKey, err := os.ReadFile("testdata/combined_private_public.pem")
+	client, err := NewClient(Config{
+		SecretKey:                "test_secret",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
+	})
 	if err != nil {
-		t.Fatalf("Failed to read private key: %v", err)
+		t.Fatalf("Failed to create client: %v", err)
 	}
 
 	// Find all encrypted test data files
@@ -53,7 +59,7 @@ func TestDecryptPaymentResponse(t *testing.T) {
 			}
 
 			// Decrypt the data
-			got, err := decryptPKCS7(encryptedData, privateKey)
+			got, err := decryptPKCS7(encryptedData, client.PrivateKey, client.PublicCert)
 			if err != nil {
 				t.Fatalf("Failed to decrypt data: %v", err)
 			}
@@ -73,6 +79,19 @@ func TestDecryptPaymentResponse(t *testing.T) {
 }
 
 func TestDecryptPaymentResponseWithXML(t *testing.T) {
+	client, err := NewClient(Config{
+		SecretKey:                "test_secret",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
+		ServerPKCS7PublicKeyFile: "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
+	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+
 	// Create a test payment response
 	testResp := PaymentResponseBackEnd{
 		RespCode: Code0000Successful,
@@ -82,22 +101,8 @@ func TestDecryptPaymentResponseWithXML(t *testing.T) {
 		t.Fatalf("Failed to marshal XML: %v", err)
 	}
 
-	// Read test certificate
-	certPEM, err := os.ReadFile("testdata/public_cert.pem")
-	if err != nil {
-		t.Fatalf("Failed to read public cert: %v", err)
-	}
-	block, _ := pem.Decode(certPEM)
-	if block == nil {
-		t.Fatal("Failed to decode PEM block")
-	}
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		t.Fatalf("Failed to parse certificate: %v", err)
-	}
-
 	// Encrypt the XML data
-	encrypted, err := pkcs7.Encrypt(xmlData, []*x509.Certificate{cert})
+	encrypted, err := pkcs7.Encrypt(xmlData, []*x509.Certificate{client.PublicCert})
 	if err != nil {
 		t.Fatalf("Failed to encrypt data: %v", err)
 	}
@@ -109,14 +114,8 @@ func TestDecryptPaymentResponseWithXML(t *testing.T) {
 		},
 	}
 
-	// Read private key for decryption
-	privateKey, err := os.ReadFile("testdata/combined_private_public.pem")
-	if err != nil {
-		t.Fatalf("Failed to read private key: %v", err)
-	}
-
 	// Test successful decryption
-	response, decrypted, err := DecryptPaymentResponseBackend(form, privateKey)
+	response, decrypted, err := client.DecryptPaymentResponseBackend(form)
 	if err != nil {
 		t.Fatalf("DecryptPaymentResponse failed: %v", err)
 	}
@@ -140,7 +139,7 @@ func TestDecryptPaymentResponseWithXML(t *testing.T) {
 			"paymentResponse": "invalid base64",
 		},
 	}
-	_, _, err = DecryptPaymentResponseBackend(invalidForm, []byte("test key"))
+	_, _, err = client.DecryptPaymentResponseBackend(invalidForm)
 	if err == nil {
 		t.Error("Expected error with invalid payment response")
 	}
@@ -149,7 +148,7 @@ func TestDecryptPaymentResponseWithXML(t *testing.T) {
 	emptyForm := mockFormValuer{
 		values: map[string]string{},
 	}
-	_, _, err = DecryptPaymentResponseBackend(emptyForm, []byte("test key"))
+	_, _, err = client.DecryptPaymentResponseBackend(emptyForm)
 	if err == nil {
 		t.Error("Expected error with empty payment response")
 	}

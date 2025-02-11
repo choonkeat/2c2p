@@ -1,9 +1,13 @@
 package api2c2p
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -28,25 +32,43 @@ type Client struct {
 	FrontendURL string
 
 	// PrivateKeyFile is the path to the combined private key and certificate PEM file
-	PrivateKeyFile string
+	PrivateKey *rsa.PrivateKey
+	PublicCert *x509.Certificate
 
-	// ServerPublicKeyFile is the path to the 2C2P's public key certificate (.cer file)
-	ServerPublicKeyFile string
+	// ServerJWTPublicKeyFile is the path to the 2C2P's public key certificate (.cer file) for JWT
+	ServerJWTPublicCert *x509.Certificate
+
+	// ServerPKCS7PublicKeyFile is the path to the 2C2P's public key certificate (.cer file) for PKCS7
+	ServerPKCS7PublicCert *x509.Certificate
 }
 
 // Config holds the configuration for creating a new 2C2P client
 type Config struct {
-	SecretKey           string
-	MerchantID          string
-	HttpClient          *http.Client
-	PaymentGatewayURL   string // URL for payment gateway APIs
-	FrontendURL         string // URL for frontend-related APIs
-	PrivateKeyFile      string
-	ServerPublicKeyFile string
+	SecretKey                string
+	MerchantID               string
+	HttpClient               *http.Client
+	PaymentGatewayURL        string // URL for payment gateway APIs
+	FrontendURL              string // URL for frontend-related APIs
+	CombinedPEM              string
+	ServerJWTPublicKeyFile   string
+	ServerPKCS7PublicKeyFile string
 }
 
 // NewClient creates a new 2C2P API client
-func NewClient(cfg Config) *Client {
+func NewClient(cfg Config) (*Client, error) {
+	privateKey, publicCert, err := loadPrivateKeyAndCert(cfg.CombinedPEM)
+	if err != nil {
+		return nil, err
+	}
+	serverJWTPublicKey, err := serverPublicCert(cfg.ServerJWTPublicKeyFile)
+	if err != nil {
+		return nil, err
+	}
+	serverPKCS7PublicKey, err := serverPublicCert(cfg.ServerPKCS7PublicKeyFile)
+	if err != nil {
+		return nil, err
+	}
+
 	if cfg.PaymentGatewayURL == "" {
 		cfg.PaymentGatewayURL = "https://sandbox-pgw.2c2p.com"
 	}
@@ -58,14 +80,16 @@ func NewClient(cfg Config) *Client {
 	}
 	loggingClient := NewLoggingClient(cfg.HttpClient, nil, true)
 	return &Client{
-		SecretKey:           cfg.SecretKey,
-		MerchantID:          cfg.MerchantID,
-		httpClient:          loggingClient,
-		PaymentGatewayURL:   cfg.PaymentGatewayURL,
-		FrontendURL:         cfg.FrontendURL,
-		PrivateKeyFile:      cfg.PrivateKeyFile,
-		ServerPublicKeyFile: cfg.ServerPublicKeyFile,
-	}
+		SecretKey:             cfg.SecretKey,
+		MerchantID:            cfg.MerchantID,
+		httpClient:            loggingClient,
+		PaymentGatewayURL:     cfg.PaymentGatewayURL,
+		FrontendURL:           cfg.FrontendURL,
+		PrivateKey:            privateKey,
+		PublicCert:            publicCert,
+		ServerJWTPublicCert:   serverJWTPublicKey,
+		ServerPKCS7PublicCert: serverPKCS7PublicKey,
+	}, nil
 }
 
 func (c *Client) paymentGatewayEndpoint(path string) string {
@@ -116,4 +140,79 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 		return nil, fmt.Errorf("do request: %w", err)
 	}
 	return resp, nil
+}
+
+//
+
+func serverPublicCert(serverPublicKeyFile string) (*x509.Certificate, error) {
+	// Read and parse 2C2P's public key certificate
+	certPEM, err := os.ReadFile(serverPublicKeyFile)
+	if err != nil {
+		return nil, fmt.Errorf("read server public key file: %#v: %w", serverPublicKeyFile, err)
+	}
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode server public key PEM")
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("parse server certificate: %w", err)
+	}
+	return cert, nil
+}
+
+func loadPrivateKeyAndCert(combinedPEMFile string) (*rsa.PrivateKey, *x509.Certificate, error) {
+	// Read the combined PEM file
+	pemData, err := os.ReadFile(combinedPEMFile)
+	if err != nil {
+		return nil, nil, fmt.Errorf("read private key file: %w", err)
+	}
+
+	// Parse private key
+	var privateKey *rsa.PrivateKey
+	var cert *x509.Certificate
+	for {
+		block, rest := pem.Decode(pemData)
+		if block == nil {
+			break
+		}
+		switch block.Type {
+		case "RSA PRIVATE KEY", "PRIVATE KEY":
+			if privateKey == nil {
+				if block.Type == "RSA PRIVATE KEY" {
+					privateKey, err = x509.ParsePKCS1PrivateKey(block.Bytes)
+				} else {
+					var key interface{}
+					key, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+					if err == nil {
+						var ok bool
+						privateKey, ok = key.(*rsa.PrivateKey)
+						if !ok {
+							err = fmt.Errorf("not an RSA private key")
+						}
+					}
+				}
+				if err != nil {
+					return nil, nil, fmt.Errorf("parse private key: %w", err)
+				}
+			}
+		case "CERTIFICATE":
+			if cert == nil {
+				cert, err = x509.ParseCertificate(block.Bytes)
+				if err != nil {
+					return nil, nil, fmt.Errorf("parse certificate: %w", err)
+				}
+			}
+		}
+		pemData = rest
+	}
+
+	if privateKey == nil {
+		return nil, nil, fmt.Errorf("no private key found")
+	}
+	if cert == nil {
+		return nil, nil, fmt.Errorf("no certificate found")
+	}
+
+	return privateKey, cert, nil
 }

@@ -156,12 +156,18 @@ func TestPaymentTokenRequest_SignatureString_Simple(t *testing.T) {
 }
 
 func TestNewPaymentTokenRequest(t *testing.T) {
-	client := NewClient(Config{
-		SecretKey:         "your_secret_key",
-		MerchantID:        "JT01",
-		PaymentGatewayURL: "https://pgw.example.com",
-		FrontendURL:       "https://frontend.example.com",
+	client, err := NewClient(Config{
+		SecretKey:                "your_secret_key",
+		MerchantID:               "JT01",
+		PaymentGatewayURL:        "https://pgw.example.com",
+		FrontendURL:              "https://frontend.example.com",
+		CombinedPEM:              "testdata/combined_private_public.pem",
+		ServerJWTPublicKeyFile:   "testdata/server.jwt.public_cert.pem",
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
 	req := &PaymentTokenRequest{
 		MerchantID:          "JT01",
 		InvoiceNo:           "INV123",

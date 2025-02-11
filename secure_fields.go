@@ -3,11 +3,11 @@ package api2c2p
 // `Server-to-server API - Frontend return URL` must be set in the 2c2p portal
 import (
 	"crypto/hmac"
+	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
-	"encoding/pem"
 	"encoding/xml"
 	"fmt"
 	"log"
@@ -340,11 +340,11 @@ type PaymentResponseBackEnd struct {
 }
 
 // DecryptPaymentResponseBackend decrypts and parses the payment response from 2C2P
-func DecryptPaymentResponseBackend(r FormValuer, privateKey []byte) (PaymentResponseBackEnd, []byte, error) {
+func (c *Client) DecryptPaymentResponseBackend(r FormValuer) (PaymentResponseBackEnd, []byte, error) {
 	encryptedResponse := r.PostFormValue("paymentResponse")
 
 	// Decrypt the response
-	decrypted, err := decryptPKCS7([]byte(encryptedResponse), privateKey)
+	decrypted, err := decryptPKCS7([]byte(encryptedResponse), c.PrivateKey, c.PublicCert)
 	if err != nil {
 		return PaymentResponseBackEnd{}, nil, fmt.Errorf("error decrypting response: %w", err)
 	}
@@ -361,35 +361,7 @@ func DecryptPaymentResponseBackend(r FormValuer, privateKey []byte) (PaymentResp
 
 // decryptPKCS7 decrypts base64-encoded PKCS7 enveloped data using certificate and private key from PEM data.
 // The combinedPEM must contain both a private key (PKCS8) and certificate in PEM format.
-func decryptPKCS7(encryptedData []byte, combinedPEM []byte) ([]byte, error) {
-	var privKey interface{}
-	var cert *x509.Certificate
-
-	// Read all PEM blocks
-	for block, rest := pem.Decode(combinedPEM); block != nil; block, rest = pem.Decode(rest) {
-		switch block.Type {
-		case "PRIVATE KEY":
-			var err error
-			privKey, err = x509.ParsePKCS8PrivateKey(block.Bytes)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse private key: %v", err)
-			}
-		case "CERTIFICATE":
-			var err error
-			cert, err = x509.ParseCertificate(block.Bytes)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse certificate: %v", err)
-			}
-		}
-	}
-
-	if privKey == nil {
-		return nil, fmt.Errorf("no private key found in PEM data")
-	}
-	if cert == nil {
-		return nil, fmt.Errorf("no certificate found in PEM data")
-	}
-
+func decryptPKCS7(encryptedData []byte, privateKey *rsa.PrivateKey, publicCert *x509.Certificate) ([]byte, error) {
 	// Decode base64 data
 	decodedData, err := base64.StdEncoding.DecodeString(string(encryptedData))
 	if err != nil {
@@ -403,7 +375,7 @@ func decryptPKCS7(encryptedData []byte, combinedPEM []byte) ([]byte, error) {
 	}
 
 	// Decrypt the data
-	decrypted, err := p7.Decrypt(cert, privKey)
+	decrypted, err := p7.Decrypt(publicCert, privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt data: %v", err)
 	}
