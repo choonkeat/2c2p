@@ -120,6 +120,8 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 
 	// Create HMAC signature string
 	payload := api2c2p.CreateSecureFieldsPaymentPayload(*frontendURL, *merchantID, *secretKey, timestamp, invoiceNo, paymentDetails, r)
+	log.Printf("Payment request FormURL: %s", payload.FormURL)
+	log.Printf("Payment request FormFields: %#v", payload.FormFields)
 
 	// Render auto-submitting form to 2C2P
 	w.Header().Set("Content-Type", "text/html")

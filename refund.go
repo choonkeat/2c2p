@@ -117,16 +117,16 @@ func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*R
 		InvoiceNo:    invoiceNo,
 		ActionAmount: amount.ToDollars(),
 		ProcessType:  "R",
-		LoyaltyPayments: &struct {
-			LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
-		}{
-			LoyaltyRefund: []LoyaltyRefund{
-				{
-					TotalRefundRewardAmount: amount.ToDollars(),
-					RefundRewards:           nil,
-				},
-			},
-		},
+		// LoyaltyPayments: &struct {
+		// 	LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
+		// }{
+		// 	LoyaltyRefund: []LoyaltyRefund{
+		// 		{
+		// 			TotalRefundRewardAmount: amount.ToDollars(),
+		// 			RefundRewards:           nil,
+		// 		},
+		// 	},
+		// },
 	}
 
 	// Create HTTP request
