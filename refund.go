@@ -34,35 +34,29 @@ type PaymentProcessRequest struct {
 			SubMID          string  `xml:"subMID,attr"`
 			SubAmount       float64 `xml:"subAmount,attr"`
 			LoyaltyPayments *struct {
-				LoyaltyRefund struct {
-					LoyaltyProvider         string  `xml:"loyaltyProvider"`
-					ExternalMerchantID      string  `xml:"externalMerchantId"`
-					TotalRefundRewardAmount float64 `xml:"totalRefundRewardAmount"`
-					RefundRewards           struct {
-						Reward []struct {
-							Type     string  `xml:"type"`
-							Quantity float64 `xml:"quantity"`
-						} `xml:"reward"`
-					} `xml:"refundRewards"`
-				} `xml:"loyaltyRefund"`
+				LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
 			} `xml:"loyaltyPayments,omitempty"`
 		} `xml:"subMerchant"`
 	} `xml:"subMerchantList,omitempty"`
 	NotifyURL       *string `xml:"notifyURL,omitempty"`
 	IdempotencyID   *string `xml:"idempotencyID,omitempty"`
 	LoyaltyPayments *struct {
-		LoyaltyRefund struct {
-			LoyaltyProvider         string  `xml:"loyaltyProvider"`
-			ExternalMerchantID      string  `xml:"externalMerchantId"`
-			TotalRefundRewardAmount float64 `xml:"totalRefundRewardAmount"`
-			RefundRewards           struct {
-				Reward []struct {
-					Type     string  `xml:"type"`
-					Quantity float64 `xml:"quantity"`
-				} `xml:"reward"`
-			} `xml:"refundRewards"`
-		} `xml:"loyaltyRefund"`
+		LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
 	} `xml:"loyaltyPayments,omitempty"`
+}
+
+type LoyaltyRefund struct {
+	LoyaltyProvider         string  `xml:"loyaltyProvider,omitempty"`
+	ExternalMerchantID      string  `xml:"externalMerchantId,omitempty"`
+	TotalRefundRewardAmount Dollars `xml:"totalRefundRewardAmount,omitempty"`
+	RefundRewards           *struct {
+		Reward []RefundReward `xml:"reward"`
+	} `xml:"refundRewards,omitempty"`
+}
+
+type RefundReward struct {
+	Type     string  `xml:"type,omitempty"`
+	Quantity float64 `xml:"quantity,omitempty"`
 }
 
 // RefundResponse represents the response from a refund request
@@ -123,6 +117,16 @@ func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*R
 		InvoiceNo:    invoiceNo,
 		ActionAmount: amount.ToDollars(),
 		ProcessType:  "R",
+		LoyaltyPayments: &struct {
+			LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
+		}{
+			LoyaltyRefund: []LoyaltyRefund{
+				{
+					TotalRefundRewardAmount: amount.ToDollars(),
+					RefundRewards:           nil,
+				},
+			},
+		},
 	}
 
 	// Create HTTP request
