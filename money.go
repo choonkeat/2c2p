@@ -61,6 +61,11 @@ type Dollars struct {
 	cents Cents
 }
 
+// ToCents converts Dollars to Cents
+func (d Dollars) ToCents() Cents {
+	return d.cents
+}
+
 // String implements fmt.Stringer
 func (d Dollars) String() string {
 	return fmt.Sprintf("%.2f", float64(d.cents)/100)

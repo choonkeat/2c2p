@@ -76,23 +76,6 @@ type RefundResponse struct {
 	TransactionRef string   `xml:"transactionRef,omitempty"`
 }
 
-// VoidCancel processes a void/cancel request for a previously successful payment
-func (c *Client) VoidCancel(ctx context.Context, invoiceNo string, amount Cents) (*RefundResponse, error) {
-	// Create void/cancel request
-	req := &PaymentProcessRequest{
-		Version:      "4.3",
-		TimeStamp:    nil, // No timestamp as requested
-		MerchantID:   c.MerchantID,
-		InvoiceNo:    invoiceNo,
-		ActionAmount: amount.ToDollars(),
-		ProcessType:  "V",
-	}
-
-	// Create HTTP request
-	var refundResp RefundResponse
-	return &refundResp, c.PerformPaymentProcess(ctx, req, &refundResp)
-}
-
 // Refund processes a refund request for a previously successful payment
 func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*RefundResponse, error) {
 	// Create refund request
