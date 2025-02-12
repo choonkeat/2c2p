@@ -11,7 +11,7 @@ import (
 	"encoding/xml"
 )
 
-func TestNewRefundRequest(t *testing.T) {
+func TestNewPaymentProcessRequest(t *testing.T) {
 	client, err := NewClient(Config{
 		SecretKey:                "test_secret",
 		MerchantID:               "JT01",
@@ -24,7 +24,7 @@ func TestNewRefundRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
 	}
-	httpReq, err := client.NewRefundRequest(context.Background(), &PaymentProcessRequest{
+	httpReq, err := client.NewPaymentProcessRequest(context.Background(), &PaymentProcessRequest{
 		Version:      "4.3",
 		MerchantID:   "JT01",
 		InvoiceNo:    "260121085327",

@@ -1,5 +1,7 @@
 package main
 
+// PaymentTokenRequest is exercised in cmd/qr_payment/main.go which is easier(?) to test
+
 import (
 	"context"
 	"flag"

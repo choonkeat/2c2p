@@ -76,6 +76,23 @@ type RefundResponse struct {
 	TransactionRef string   `xml:"transactionRef,omitempty"`
 }
 
+// VoidCancel processes a void/cancel request for a previously successful payment
+func (c *Client) VoidCancel(ctx context.Context, invoiceNo string, amount Cents) (*RefundResponse, error) {
+	// Create void/cancel request
+	req := &PaymentProcessRequest{
+		Version:      "4.3",
+		TimeStamp:    nil, // No timestamp as requested
+		MerchantID:   c.MerchantID,
+		InvoiceNo:    invoiceNo,
+		ActionAmount: amount.ToDollars(),
+		ProcessType:  "V",
+	}
+
+	// Create HTTP request
+	var refundResp RefundResponse
+	return &refundResp, c.PerformPaymentProcess(ctx, req, &refundResp)
+}
+
 // Refund processes a refund request for a previously successful payment
 func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*RefundResponse, error) {
 	// Create refund request
@@ -99,34 +116,40 @@ func (c *Client) Refund(ctx context.Context, invoiceNo string, amount Cents) (*R
 	}
 
 	// Create HTTP request
-	httpReq, err := c.NewRefundRequest(ctx, req)
+	var refundResp RefundResponse
+	return &refundResp, c.PerformPaymentProcess(ctx, req, &refundResp)
+}
+
+// Refund processes a refund request for a previously successful payment
+func (c *Client) PerformPaymentProcess(ctx context.Context, input *PaymentProcessRequest, output interface{}) error {
+	// Create HTTP request
+	httpReq, err := c.NewPaymentProcessRequest(ctx, input)
 	if err != nil {
-		return nil, fmt.Errorf("create request: %w", err)
+		return fmt.Errorf("create request: %w", err)
 	}
 
 	// Send request
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return fmt.Errorf("send request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Parse response
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("read response body: %w", err)
+		return fmt.Errorf("read response body: %w", err)
 	}
 	decrypted, err := c.verifyJWSAndDecryptJWE(string(body))
 	if err != nil {
-		return nil, fmt.Errorf("verify and decrypt JWS JWE: %w", err)
+		return fmt.Errorf("verify and decrypt JWS JWE: %w", err)
 	}
 
-	var refundResp RefundResponse
-	if err := xml.NewDecoder(bytes.NewReader(decrypted)).Decode(&refundResp); err != nil {
-		return nil, fmt.Errorf("decode response: %w", err)
+	if err := xml.NewDecoder(bytes.NewReader(decrypted)).Decode(&output); err != nil {
+		return fmt.Errorf("decode response: %w", err)
 	}
 
-	return &refundResp, nil
+	return nil
 }
 
 func jwsWithRawPayload(privateKey *rsa.PrivateKey, token *jwt.Token, payload []byte) (string, error) {
@@ -225,14 +248,13 @@ func (c *Client) encryptJWEAndSignJWS(xmlData []byte) (string, error) {
 	return signedJWE, nil
 }
 
-// NewRefundRequest creates a new HTTP request for refunding a payment
-func (c *Client) NewRefundRequest(ctx context.Context, req *PaymentProcessRequest) (*http.Request, error) {
+// NewPaymentProcessRequest creates a new HTTP request for refunding a payment
+func (c *Client) NewPaymentProcessRequest(ctx context.Context, req *PaymentProcessRequest) (*http.Request, error) {
 	// Marshal request to XML
 	xmlData, err := xml.MarshalIndent(req, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
-	log.Printf("[DEBUG] Request XML: %s", string(xmlData))
 
 	// Sign the token
 	signedJWE, err := c.encryptJWEAndSignJWS(xmlData)
