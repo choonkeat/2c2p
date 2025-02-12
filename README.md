@@ -9,6 +9,7 @@ A Go client library for integrating with the 2C2P Payment Gateway API (v4.3.1).
 - Payment Token API support
 - SecureFields integration for PCI-compliant card data collection
 - QR Payment support (VISA QR, Master Card QR, UPI QR)
+- Void/Cancel API support
 - CLI tools for API testing and utilities
 - Comprehensive test coverage
 
@@ -40,6 +41,7 @@ Each 2C2P API has different integration requirements. The following table summar
 | [Payment Inquiry](https://developer.2c2p.com/v4.3.1/docs/api-payment-inquiry) | Gateway | Server-to-Server | JWT with JSON payload | Secret Key |
 | [QR Payment](https://developer.2c2p.com/v4.3.1/docs/direct-api-method-qr-payment) | Gateway | Server-to-Server | JSON | Secret Key |
 | [Refund](https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-refund-guide) | Frontend | Server-to-Server | JWS containing JWE-encrypted XML | Our Private Key + 2C2P Public Cert |
+| [Void/Cancel](https://developer.2c2p.com/v4.3.1/docs/payment-maintenance-void-guide) | Frontend | Server-to-Server | JWS containing JWE-encrypted XML | Our Private Key + 2C2P Public Cert |
 
 ### Keys and Configuration
 
@@ -133,6 +135,31 @@ if refundResp.RespCode == "0000" {
 ```
 
 Note: Refunds can only be processed for settled transactions.
+
+### Processing a Void/Cancel
+
+To void or cancel a transaction:
+
+```go
+voidReq := &api2c2p.VoidCancelRequest{
+    InvoiceNo:    "your_invoice_number",
+    ActionAmount: api2c2p.Cents(2500).ToDollars(), // Amount to void/cancel (25.00)
+}
+
+voidResp, err := client.VoidCancel(context.Background(), voidReq)
+if err != nil {
+    log.Fatalf("Failed to process void/cancel: %v", err)
+}
+
+// Check response
+if voidResp.RespCode == "00" {
+    fmt.Println("Void/Cancel successful")
+} else {
+    fmt.Printf("Void/Cancel failed: %s\n", voidResp.RespDesc)
+}
+```
+
+Note: Void/Cancel operations are typically used for unsettled transactions or to cancel a payment before it is settled.
 
 ## Code Organization and Implementation Principles
 

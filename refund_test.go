@@ -104,7 +104,7 @@ func TestRefund(t *testing.T) {
 		FrontendURL:              "https://frontend.example.com",
 		CombinedPEM:              "testdata/combined_private_public.pem",
 		ServerJWTPublicKeyFile:   "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
-		ServerPKCS7PublicKeyFile: "testdata/public_cert.pem", // we have to decrypt what we encrypted in this test
+		ServerPKCS7PublicKeyFile: "testdata/server.pkcs7.public_cert.pem",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
