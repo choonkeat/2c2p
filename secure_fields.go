@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/fullsailor/pkcs7"
+	"github.com/google/uuid"
 )
 
 // SecureFieldsResponse represents a response from the secure fields API
@@ -207,41 +208,91 @@ type SecureFieldsPaymentPayload struct {
 }
 
 type SecureFieldsPaymentDetails struct {
-	AmountCents  Cents
-	CurrencyCode string
-	Description  string
-	CustomerName string
-	CountryCode  string
-	StoreCard    string
-	UserDefined1 string
-	UserDefined2 string
-	UserDefined3 string
-	UserDefined4 string
-	UserDefined5 string
+	AmountCents      Cents
+	CurrencyCode     string
+	IsLoyaltyPayment bool
+	Description      string
+	CustomerName     string
+	CountryCode      string
+	StoreCard        string
+	UserDefined1     string
+	UserDefined2     string
+	UserDefined3     string
+	UserDefined4     string
+	UserDefined5     string
 }
 
 // PaymentRequest represents the XML structure for a payment request
 type PaymentRequest struct {
-	XMLName               xml.Name `xml:"PaymentRequest"`
-	Version               string   `xml:"version"`
-	TimeStamp             string   `xml:"timeStamp"`
-	MerchantID            string   `xml:"merchantID"`
-	UniqueTransactionCode string   `xml:"uniqueTransactionCode"`
-	Description           string   `xml:"desc"`
-	Amount                string   `xml:"amt"`
-	CurrencyCode          string   `xml:"currencyCode"`
-	PaymentChannel        string   `xml:"paymentChannel"`
-	PanCountry            string   `xml:"panCountry"`
-	CardholderName        string   `xml:"cardholderName"`
-	Request3DS            string   `xml:"request3DS"`
-	SecureHash            string   `xml:"secureHash"`
-	StoreCard             string   `xml:"storeCard"`
-	EncCardData           string   `xml:"encCardData"`
-	UserDefined1          string   `xml:"userDefined1"`
-	UserDefined2          string   `xml:"userDefined2"`
-	UserDefined3          string   `xml:"userDefined3"`
-	UserDefined4          string   `xml:"userDefined4"`
-	UserDefined5          string   `xml:"userDefined5"`
+	XMLName               xml.Name         `xml:"PaymentRequest"`
+	Version               string           `xml:"version"`
+	TimeStamp             string           `xml:"timeStamp"`
+	MerchantID            string           `xml:"merchantID"`
+	UniqueTransactionCode string           `xml:"uniqueTransactionCode"`
+	Description           string           `xml:"desc"`
+	Amount                string           `xml:"amt"`
+	CurrencyCode          string           `xml:"currencyCode"`
+	PaymentChannel        string           `xml:"paymentChannel"`
+	PanCountry            string           `xml:"panCountry"`
+	CardholderName        string           `xml:"cardholderName"`
+	Request3DS            string           `xml:"request3DS"`
+	SecureHash            string           `xml:"secureHash"`
+	StoreCard             string           `xml:"storeCard"`
+	EncCardData           string           `xml:"encCardData"`
+	UserDefined1          string           `xml:"userDefined1"`
+	UserDefined2          string           `xml:"userDefined2"`
+	UserDefined3          string           `xml:"userDefined3"`
+	UserDefined4          string           `xml:"userDefined4"`
+	UserDefined5          string           `xml:"userDefined5"`
+	IsLoyaltyPayment      YesNo            `xml:"isLoyaltyPayment,omitempty"` // Y or N
+	LoyaltyPayments       *LoyaltyPayments `xml:"loyaltyPayments,omitempty"`
+}
+
+type LoyaltyPayments struct {
+	LoyaltyPayment []LoyaltyPayment `xml:"loyaltyPayment"`
+}
+
+type LoyaltyPayment struct {
+	LoyaltyProvider string     `xml:"loyaltyProvider,omitempty"`
+	RedeemAmt       Dollars    `xml:"redeemAmt"`
+	RedeemCurrency  string     `xml:"redeemCurrency"`
+	Redemption      Redemption `xml:"redemption"`
+}
+
+type Redemption struct {
+	Reward Reward `xml:"reward"`
+}
+
+type YesNo bool
+
+const (
+	Yes YesNo = true
+	No  YesNo = false
+)
+
+// MarshalXML implements xml.Marshaler
+func (yn YesNo) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if yn {
+		return e.EncodeElement("Y", start)
+	}
+	return e.EncodeElement("N", start)
+}
+
+// UnmarshalXML implements xml.Unmarshaler
+func (yn *YesNo) UnmarshalXML(dec *xml.Decoder, start xml.StartElement) error {
+	var s string
+	if err := dec.DecodeElement(&s, &start); err != nil {
+		return err
+	}
+	switch s {
+	case "Y":
+		*yn = true
+	case "N":
+		*yn = false
+	default:
+		return fmt.Errorf("invalid value: %s", s)
+	}
+	return nil
 }
 
 func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, invoiceNo string, paymentDetails SecureFieldsPaymentDetails, form FormValuer) SecureFieldsPaymentPayload {
@@ -282,12 +333,33 @@ func CreateSecureFieldsPaymentPayload(c2pURL, merchantID, secretKey, timestamp, 
 		UserDefined5:          paymentDetails.UserDefined5,
 	}
 
+	if paymentDetails.IsLoyaltyPayment {
+		paymentRequest.IsLoyaltyPayment = Yes
+		paymentRequest.LoyaltyPayments = &LoyaltyPayments{
+			LoyaltyPayment: []LoyaltyPayment{
+				{
+					LoyaltyProvider: "MCCY",
+					RedeemAmt:       paymentDetails.AmountCents.ToDollars(),
+					RedeemCurrency:  "SGD", // paymentDetails.CurrencyCode,
+					Redemption: Redemption{
+						Reward: Reward{
+							ID:       uuid.New().String(), // generate random UUID
+							Quantity: paymentDetails.AmountCents.ToDollars(),
+						},
+					},
+				},
+			},
+		}
+	}
+	log.Printf("Payment request: %v", paymentRequest)
+
 	// Marshal the payment request to XML
 	xmlBytes, err := xml.Marshal(paymentRequest)
 	if err != nil {
 		log.Printf("Error marshaling payment request to XML: %v", err)
 		return SecureFieldsPaymentPayload{}
 	}
+	log.Printf("Payment request XML: %s", string(xmlBytes))
 
 	// Base64 encode the XML
 	return SecureFieldsPaymentPayload{

@@ -31,32 +31,35 @@ type PaymentProcessRequest struct {
 	AccountNumber   *string  `xml:"accountNumber,omitempty"`
 	SubMerchantList *struct {
 		SubMerchant []struct {
-			SubMID          string  `xml:"subMID,attr"`
-			SubAmount       float64 `xml:"subAmount,attr"`
-			LoyaltyPayments *struct {
-				LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
-			} `xml:"loyaltyPayments,omitempty"`
+			SubMID          string                 `xml:"subMID,attr"`
+			SubAmount       float64                `xml:"subAmount,attr"`
+			LoyaltyPayments *RefundLoyaltyPayments `xml:"loyaltyPayments,omitempty"`
 		} `xml:"subMerchant"`
 	} `xml:"subMerchantList,omitempty"`
-	NotifyURL       *string `xml:"notifyURL,omitempty"`
-	IdempotencyID   *string `xml:"idempotencyID,omitempty"`
-	LoyaltyPayments *struct {
-		LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
-	} `xml:"loyaltyPayments,omitempty"`
+	NotifyURL       *string                `xml:"notifyURL,omitempty"`
+	IdempotencyID   *string                `xml:"idempotencyID,omitempty"`
+	LoyaltyPayments *RefundLoyaltyPayments `xml:"loyaltyPayments,omitempty"`
+}
+
+type RefundLoyaltyPayments struct {
+	LoyaltyRefund []LoyaltyRefund `xml:"loyaltyRefund"`
 }
 
 type LoyaltyRefund struct {
-	LoyaltyProvider         string  `xml:"loyaltyProvider,omitempty"`
-	ExternalMerchantID      string  `xml:"externalMerchantId,omitempty"`
-	TotalRefundRewardAmount Dollars `xml:"totalRefundRewardAmount,omitempty"`
-	RefundRewards           *struct {
-		Reward []RefundReward `xml:"reward"`
-	} `xml:"refundRewards,omitempty"`
+	LoyaltyProvider         string         `xml:"loyaltyProvider,omitempty"`
+	ExternalMerchantID      string         `xml:"externalMerchantId,omitempty"`
+	TotalRefundRewardAmount Dollars        `xml:"totalRefundRewardAmount,omitempty"`
+	RefundRewards           *RefundRewards `xml:"refundRewards,omitempty"`
 }
 
-type RefundReward struct {
+type RefundRewards struct {
+	Reward []Reward `xml:"reward"`
+}
+
+type Reward struct {
 	Type     string  `xml:"type,omitempty"`
-	Quantity float64 `xml:"quantity,omitempty"`
+	ID       string  `xml:"id"`
+	Quantity Dollars `xml:"quantity,omitempty"`
 }
 
 // RefundResponse represents the response from a refund request

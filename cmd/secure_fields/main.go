@@ -26,7 +26,8 @@ var (
 	frontendURL            = flag.String("frontendURL", "https://demo2.2c2p.com", "2C2P Frontend URL")
 
 	// Form configuration
-	formAction = flag.String("formAction", "/process-payment", "Form action URL")
+	formAction       = flag.String("formAction", "/process-payment", "Form action URL")
+	isLoyaltyPayment = flag.Bool("isLoyaltyPayment", false, "Is loyalty payment")
 )
 
 // main starts a web server that demonstrates the 2C2P payment flow:
@@ -104,17 +105,18 @@ func handlePaymentRequest(w http.ResponseWriter, r *http.Request) {
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	invoiceNo := fmt.Sprintf("INV%s", timestamp)
 	paymentDetails := api2c2p.SecureFieldsPaymentDetails{
-		AmountCents:  1234,
-		CurrencyCode: "702", // SGD
-		Description:  "1 room for 2 nights",
-		CustomerName: "John Doe",
-		CountryCode:  "SG",
-		StoreCard:    "Y",
-		UserDefined1: "1",
-		UserDefined2: "2",
-		UserDefined3: "3",
-		UserDefined4: "4",
-		UserDefined5: "5",
+		AmountCents:      1234,
+		CurrencyCode:     "702", // SGD
+		IsLoyaltyPayment: *isLoyaltyPayment,
+		Description:      "1 room for 2 nights",
+		CustomerName:     "John Doe",
+		CountryCode:      "SG",
+		StoreCard:        "Y",
+		UserDefined1:     "1",
+		UserDefined2:     "2",
+		UserDefined3:     "3",
+		UserDefined4:     "4",
+		UserDefined5:     "5",
 	}
 
 	// Create HMAC signature string
