@@ -186,7 +186,7 @@ func handlePaymentNotification(w http.ResponseWriter, r *http.Request, client *a
 	log.Printf("Payment notification received: RespCode=%s XML=%s", string(response.RespCode), string(decrypted))
 
 	inquiryResponse, err := client.PaymentInquiryByInvoice(r.Context(), &api2c2p.PaymentInquiryByInvoiceRequest{
-		InvoiceNo: response.TranRef,
+		InvoiceNo: response.UniqueTransactionCode,
 		Locale:    "en",
 	})
 	if err != nil {
